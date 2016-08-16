@@ -43,7 +43,7 @@ pokemon_name = {"1":"Bulbasaur","2":"Ivysaur","3":"Venusaur","4":"Charmander","5
 "131":"Lapras","132":"Ditto","133":"Eevee","134":"Vaporeon","135":"Jolteon","136":"Flareon","137":"Porygon","138":"Omanyte","139":"Omastar","140":"Kabuto",\
 "141":"Kabutops","142":"Aerodactyl","143":"Snorlax","144":"Articuno","145":"Zapdos","146":"Moltres","147":"Dratini","148":"Dragonair","149":"Dragonite","150":"Mewtwo"}
 #pokemon rarity
-pokemon_rarity = [
+pokemon_rarity = [[],
 	["13","16","19","41","133"],
 	["1","7","10","17","21","23","25","29","32","35","43","46","48","58","60","69","84","92","96","98","120","127","129","147"],
 	["2","4","8","11","14","15","18","20","22","27","37","39","42","47","49","50","52","54","56","61","63","66","70","72","74",\
@@ -53,11 +53,13 @@ pokemon_rarity = [
 	["26","28","38","40","45","51","62","65","68","71","76","82","83","87","89","91","94","101","115","130","132","136","139","141","144","145","146","150","151"],
 ];
 
+rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"]
+
 
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
 def start(bot, update):
-    bot.sendMessage(update.message.chat_id, text='Hello! write /set and the number of the pokemon to scan.\nexample for bulbasaur:\n/set 1')
+    bot.sendMessage(update.message.chat_id, text='Hello! write /set and the number of the pokemon to scan.\nexample for bulbasaur:\n/set 1\n Or /setbyrarity and the rarity number from 1 to 5')
 
 
 def alarm(bot, job):
@@ -73,14 +75,33 @@ def alarm(bot, job):
             latitude = str(row[3])
             longitude = str(row[4])
             disappear = str(row[5])
-            #link = "http://maps.google.com/maps?q=" + latitude + "," + longitude + "&ll=" + latitude + "," + longitude + "&z=17"
             title =  pokemon_name[pok_id]
-            address = "Disappear at min :" + disappear[15:16]
+            address = "Disappear at min " + disappear[15:16]
             if encounter_id not in sent:
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
                 bot.sendVenue(job.context[0], latitude, longitude, title, address)
 
+def rarityalarm(bot, job):
+    with con:
+        cur = con.cursor()
+        rarity = int(job.context[1])
+        for pokemon in pokemon_rarity[rarity]:
+            cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
+            rows = cur.fetchall()
+            for row in rows:
+                encounter_id = str(row[0])
+                spaw_point = str(row[1])
+                pok_id = str(row[2])
+                latitude = str(row[3])
+                longitude = str(row[4])
+                disappear = str(row[5])
+                title =  pokemon_name[pok_id]
+                address = "Disappear at min " + disappear[15:16]
+                if encounter_id not in sent:
+                    sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+                    """Function to send the alarm message"""
+                    bot.sendVenue(job.context[0], latitude, longitude, title, address)
 
 def set(bot, update, args, job_queue):
     """Adds a job to the queue"""
@@ -106,8 +127,37 @@ def set(bot, update, args, job_queue):
                 disappear = str(row[5])
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
         text = "Scanner on for " + pokemon_name[str(pokemon)]
+        bot.sendMessage(chat_id, text)
     except (IndexError, ValueError):
         bot.sendMessage(chat_id, text='usage: /set <#pokemon>')
+
+def setbyrarity(bot, update,args, job_queue):
+    """Adds a job to the queue"""
+    chat_id = update.message.chat_id
+    try:
+        rarity = int(args[0])
+        # Add job to queue
+        job = Job(rarityalarm, 30, repeat=True, context=(chat_id,rarity))
+        timers[chat_id] = job
+        job_queue.put(job)
+        #but first, save the pokemon already appeared
+        for pokemon in pokemon_rarity[rarity]:
+            with con:
+                cur = con.cursor()
+                cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
+                rows = cur.fetchall()
+                for row in rows:
+                    encounter_id = str(row[0])
+                    spaw_point = str(row[1])
+                    pok_id = str(row[2])
+                    latitude = str(row[3])
+                    longitude = str(row[4])
+                    disappear = str(row[5])
+                    sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+        text = "Scanner on for " + rarity_value[rarity]
+        bot.sendMessage(chat_id, text)
+    except (IndexError, ValueError):
+        bot.sendMessage(chat_id, text='usage: /setbyrarity <#rarity> with 1 uncommon to 5 ultrarare')
 
 
 
@@ -141,6 +191,7 @@ def main():
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", start))
     dp.add_handler(CommandHandler("set", set, pass_args=True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("setbyrarity", setbyrarity,pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("unset", unset))
 
     # log all errors

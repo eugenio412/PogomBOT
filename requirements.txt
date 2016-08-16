@@ -1,0 +1,1 @@
+python-telegram-bot==5.0.0

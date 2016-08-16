@@ -8,13 +8,7 @@
 
 # better on python3.4
 
-#HOW TO RUN IT:
-#launch pokemon go map, and scan an area
-#generate a token for telegram bot contacting the bot father on telegram @botfather
-#put it into the script at the place of TOKEN
-#install python telegram bot: sudo pip3 install python-telegram-bot
-#then run python3.4 telegrambot.py
-#write to your bot on telegram
+'''please READ FIRST the README.md'''
 
 import datetime
 import sqlite3 as lite

@@ -76,7 +76,7 @@ def alarm(bot, job):
             longitude = str(row[4])
             disappear = str(row[5])
             title =  pokemon_name[pok_id]
-            address = "Disappear at min " + disappear[15:16]
+            address = "Disappear at  " + disappear
             if encounter_id not in sent:
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
@@ -97,7 +97,7 @@ def rarityalarm(bot, job):
                 longitude = str(row[4])
                 disappear = str(row[5])
                 title =  pokemon_name[pok_id]
-                address = "Disappear at min " + disappear[15:16]
+                address = "Disappear at min " + disappear
                 if encounter_id not in sent:
                     sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                     """Function to send the alarm message"""
@@ -200,6 +200,7 @@ def main():
     # Start the Bot
     updater.start_polling()
 
+    logger.info('pogomBOT-Telegram started!')
     # Block until the you presses Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.

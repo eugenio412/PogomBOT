@@ -16,6 +16,9 @@ Made using [pogom](https://github.com/favll/pogom)
 6. run `python3.4 pogobot.py`
 7. Go to telegram and write /start to !!YOUR!! bot (not the same of the picture please)
 8. to be notified of a certain pokemon write to it `/set 1` changing the pokemon number as you want
-9. to be notified by pokemon RARITY write `/set 5` changing the number from 5 (ultrarare) to 1 common
+9. to be notified by pokemon RARITY write `/setbyrarity 5` changing the number from 5 (ultrarare) to 1 common
+
+If you want to dig deeper in the script go and first check the [telegram bot api](https://core.telegram.org/bots/api)
+or check the examples made in the [python-telegram-bot repository](https://github.com/python-telegram-bot/python-telegram-bot/tree/master/examples) and their [wiki](https://github.com/python-telegram-bot/python-telegram-bot/wiki)
 
 NOTE: if you stop the bot it will foget all the pokemon to scan, you should set it again

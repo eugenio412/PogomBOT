@@ -10,38 +10,34 @@
 
 '''please READ FIRST the README.md'''
 
-import datetime
 import sqlite3 as lite
 from telegram.ext import Updater, CommandHandler, Job
+from telegram import Bot
 import logging
+
+from datetime import datetime
+import os
+import sys
+import json
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
-timers = dict()
+
+jobs = dict()
+search_ids = dict()
 sent = dict()
+language = dict()
+
 #read the database
-con = lite.connect('pogom.db',check_same_thread=False)
+con = lite.connect('pogom.db', check_same_thread=False)
 cur = con.cursor()
 
 #pokemon:
-pokemon_name = {"1":"Bulbasaur","2":"Ivysaur","3":"Venusaur","4":"Charmander","5":"Charmeleon","6":"Charizard","7":"Squirtle","8":"Wartortle","9":"Blastoise","10":"Caterpie",\
-"11":"Metapod","12":"Butterfree","13":"Weedle","14":"Kakuna","15":"Beedrill","16":"Pidgey","17":"Pidgeotto","18":"Pidgeot","19":"Rattata","20":"Raticate",\
-"21":"Spearow","22":"Fearow","23":"Ekans","24":"Arbok","25":"Pikachu","26":"Raichu","27":"Sandshrew","28":"Sandslash","29":"Nidoran♀","30":"Nidorina",\
-"31":"Nidoqueen","32":"Nidoran♂","33":"Nidorino","34":"Nidoking","35":"Clefairy","36":"Clefable","37":"Vulpix","38":"Ninetales","39":"Jigglypuff","40":"Wigglytuff",\
-"41":"Zubat","42":"Golbat","43":"Oddish","44":"Gloom","45":"Vileplume","46":"Paras","47":"Parasect","48":"Venonat","49":"Venomoth","50":"Diglett",\
-"51":"Dugtrio","52":"Meowth","53":"Persian","54":"Psyduck","55":"Golduck","56":"Mankey","57":"Primeape","58":"Growlithe","59":"Arcanine","60":"Poliwag",\
-"61":"Poliwhirl","62":"Poliwrath","63":"Abra","64":"Kadabra","65":"Alakazam","66":"Machop","67":"Machoke","68":"Machamp","69":"Bellsprout","70":"Weepinbell",\
-"71":"Victreebel","72":"Tentacool","73":"Tentacruel","74":"Geodude","75":"Graveler","76":"Golem","77":"Ponyta","78":"Rapidash","79":"Slowpoke","80":"Slowbro",\
-"81":"Magnemite","82":"Magneton","83":"Farfetch'd","84":"Doduo","85":"Dodrio","86":"Seel","87":"Dewgong","88":"Grimer","89":"Muk","90":"Shellder",\
-"91":"Cloyster","92":"Gastly","93":"Haunter","94":"Gengar","95":"Onix","96":"Drowzee","97":"Hypno","98":"Krabby","99":"Kingler","100":"Voltorb",\
-"101":"Electrode","102":"Exeggcute","103":"Exeggutor","104":"Cubone","105":"Marowak","106":"Hitmonlee","107":"Hitmonchan","108":"Lickitung","109":"Koffing","110":"Weezing",\
-"111":"Rhyhorn","112":"Rhydon","113":"Chansey","114":"Tangela","115":"Kangaskhan","116":"Horsea","117":"Seadra","118":"Goldeen","119":"Seaking","120":"Staryu",\
-"121":"Starmie","122":"Mr. Mime","123":"Scyther","124":"Jynx","125":"Electabuzz","126":"Magmar","127":"Pinsir","128":"Tauros","129":"Magikarp","130":"Gyarados",\
-"131":"Lapras","132":"Ditto","133":"Eevee","134":"Vaporeon","135":"Jolteon","136":"Flareon","137":"Porygon","138":"Omanyte","139":"Omastar","140":"Kabuto",\
-"141":"Kabutops","142":"Aerodactyl","143":"Snorlax","144":"Articuno","145":"Zapdos","146":"Moltres","147":"Dratini","148":"Dragonair","149":"Dragonite","150":"Mewtwo"}
+pokemon_name = dict()
+
 #pokemon rarity
 pokemon_rarity = [[],
 	["13","16","19","41","133"],
@@ -55,19 +51,184 @@ pokemon_rarity = [[],
 
 rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"]
 
-
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
-def start(bot, update):
-    bot.sendMessage(update.message.chat_id, text='Hello! write /set and the number of the pokemon to scan.\nexample for bulbasaur:\n/set 1\n Or /setbyrarity and the rarity number from 1 to 5')
+def help(bot, update):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Sending help text.' % (chat_id))
+    bot.sendMessage(chat_id, text= '/help /start')
+    bot.sendMessage(chat_id, text= '/add <#pokedexID>')
+    bot.sendMessage(chat_id, text= '/add <#pokedexID1> <#pokedexID2> ...')
+    bot.sendMessage(chat_id, text= '/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare')
+    bot.sendMessage(chat_id, text= '/clear')
+    bot.sendMessage(chat_id, text= '/rem <#pokedexID>')
+    bot.sendMessage(chat_id, text= '/rem <#pokedexID1> <#pokedexID2> ...')
+    bot.sendMessage(chat_id, text= '/list')
+    bot.sendMessage(chat_id, text= '/save')
+    bot.sendMessage(chat_id, text= '/lang en')
+    tmp = ''
+    for key in pokemon_name:
+        tmp += "%s, " % (key)
+    tmp = tmp[:-2]
+    bot.sendMessage(chat_id, text= '/lang [%s]' % (tmp))
 
+def start(bot, update):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Starting.' % (chat_id))
+    bot.sendMessage(chat_id, text='Hello!')
+    help(bot, update)
+
+def add(bot, update, args, job_queue):
+    addJob(bot, update, job_queue)
+    chat_id = update.message.chat_id
+    logger.info('[%s] Add pokemon.' % (chat_id))
+
+    try:
+        search = search_ids[chat_id]
+        for x in args:
+            if int(x) not in search:
+                search.append(int(x))
+        search.sort()
+        list(bot, update)
+    except (IndexError, ValueError):
+        bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
+
+def addByRarity(bot, update, args, job_queue):
+    addJob(bot, update, job_queue)
+    chat_id = update.message.chat_id
+    logger.info('[%s] Add pokemon by rarity.' % (chat_id))
+
+    try:
+        rarity = int(args[0])
+
+        search = search_ids[chat_id]
+        for x in pokemon_rarity[rarity]:
+            if int(x) not in search:
+                search.append(int(x))
+        search.sort()
+        list(bot, update)
+    except (IndexError, ValueError):
+        bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
+
+def clear(bot, update):
+    """Removes the job if the user changed their mind"""
+    chat_id = update.message.chat_id
+    logger.info('[%s] Clear list.' % (chat_id))
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    # Remove from jobs
+    job = jobs[chat_id]
+    job.schedule_removal()
+    del jobs[chat_id]
+    # Remove from search_ids
+    del search_ids[chat_id]
+
+    bot.sendMessage(chat_id, text='Notifications successfully removed!')
+
+def remove(bot, update, args, job_queue):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Remove pokemon.' % (chat_id))
+
+    try:
+        search = search_ids[chat_id]
+        for x in args:
+            if int(x) in search:
+                search.remove(int(x))
+        list(bot, update)
+    except (IndexError, ValueError):
+        bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
+
+def list(bot, update):
+    chat_id = update.message.chat_id
+    logger.info('[%s] List.' % (chat_id))
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    lan = language[chat_id]
+    tmp = 'List of notifications:\n'
+    for x in search_ids[chat_id]:
+        tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
+    bot.sendMessage(chat_id, text = tmp)
+
+def save(bot, update):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Save.' % (chat_id))
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    tmp = '/add '
+    for x in search_ids[chat_id]:
+        tmp += "%i " % (x)
+    bot.sendMessage(chat_id, text = tmp)
+
+def lang(bot, update, args):
+    chat_id = update.message.chat_id
+    try:
+        lan = args[0]
+        logger.info('[%s] Setting lang.' % (chat_id))
+
+        if lan in pokemon_name:
+            language[chat_id] = args[0]
+            bot.sendMessage(chat_id, text='Language set to [%s].' % (lan))
+        else:
+            tmp = ''
+            for key in pokemon_name:
+                tmp += "%s, " % (key)
+            tmp = tmp[:-2]
+            bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
+    except (IndexError, ValueError):
+            bot.sendMessage(chat_id, text='usage: /lang <#language>')
+
+def error(bot, update, error):
+    logger.warn('Update "%s" caused error "%s"' % (update, error))
 
 def alarm(bot, job):
+    chat_id = job.context[0]
+    logger.info('[%s] Checking alarm.' % (chat_id))
+    checkAndSend(bot, chat_id, search_ids[chat_id])
+
+def addJob(bot, update, job_queue):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Adding job.' % (chat_id))
+
+    if chat_id not in jobs:
+        job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
+        # Add to jobs
+        jobs[chat_id] = job
+        job_queue.put(job)
+        # Add to search_ids
+        search_ids[chat_id] = []
+        # Set default language
+        language[chat_id] = config.get('DEFAULT_LANG', None)
+
+        text = "Scanner started."
+        bot.sendMessage(chat_id, text)
+
+def checkAndSend(bot, chat_id, pokemons):
+    logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
+    sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
+    for pokemon in pokemons:
+        sqlquery += str(pokemon) + ','
+    sqlquery = sqlquery[:-1]
+    sqlquery += ')'
+    sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
+    sqlquery += ' ORDER BY pokemon_id ASC'
+
+    lan = language[chat_id]
     with con:
         cur = con.cursor()
-        pokemon = int(job.context[1])
-        cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
+
+        # logger.info('%s' % (sqlquery))
+        cur.execute(sqlquery)
         rows = cur.fetchall()
+        # logger.info('%i' % (len(rows)))
         for row in rows:
             encounter_id = str(row[0])
             spaw_point = str(row[1])
@@ -75,124 +236,67 @@ def alarm(bot, job):
             latitude = str(row[3])
             longitude = str(row[4])
             disappear = str(row[5])
-            title =  pokemon_name[pok_id]
-            address = "Disappear at  " + disappear
+            title =  pokemon_name[lan][pok_id]
+            address = "Disappear at %smin" % (disappear[14:16])
+
             if encounter_id not in sent:
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
-                bot.sendVenue(job.context[0], latitude, longitude, title, address)
+                bot.sendVenue(chat_id, latitude, longitude, title, address)
 
-def rarityalarm(bot, job):
-    with con:
-        cur = con.cursor()
-        rarity = int(job.context[1])
-        for pokemon in pokemon_rarity[rarity]:
-            cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
-            rows = cur.fetchall()
-            for row in rows:
-                encounter_id = str(row[0])
-                spaw_point = str(row[1])
-                pok_id = str(row[2])
-                latitude = str(row[3])
-                longitude = str(row[4])
-                disappear = str(row[5])
-                title =  pokemon_name[pok_id]
-                address = "Disappear at min " + disappear
-                if encounter_id not in sent:
-                    sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-                    """Function to send the alarm message"""
-                    bot.sendVenue(job.context[0], latitude, longitude, title, address)
+def read_config():
+    logger.info('Reading config.')
+    config_path = os.path.join(
+        os.path.dirname(sys.argv[0]), "config-bot.json")
+    global config
 
-def set(bot, update, args, job_queue):
-    """Adds a job to the queue"""
-    chat_id = update.message.chat_id
     try:
-        pokemon = args[0]
-        # Add job to queue
-        job = Job(alarm, 30, repeat=True, context=(chat_id,pokemon))
-        timers[chat_id] = job
-        job_queue.put(job)
-        #but first, save the pokemon already appeared
-        with con:
-            cur = con.cursor()
-            pokemon = int(job.context[1])
-            cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
-            rows = cur.fetchall()
-            for row in rows:
-                encounter_id = str(row[0])
-                spaw_point = str(row[1])
-                pok_id = str(row[2])
-                latitude = str(row[3])
-                longitude = str(row[4])
-                disappear = str(row[5])
-                sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-        text = "Scanner on for " + pokemon_name[str(pokemon)]
-        bot.sendMessage(chat_id, text)
-    except (IndexError, ValueError):
-        bot.sendMessage(chat_id, text='usage: /set <#pokemon>')
+        with open(config_path, "r") as f:
+            config = json.loads(f.read())
+    except:
+        config = {}
 
-def setbyrarity(bot, update,args, job_queue):
-    """Adds a job to the queue"""
-    chat_id = update.message.chat_id
+def read_pokemon_names(loc):
+    logger.info('Reading pokemon names.')
+    config_path = os.path.join(
+        os.path.dirname(sys.argv[0]), "static/locales/pokemon." + loc + ".json")
+
     try:
-        rarity = int(args[0])
-        # Add job to queue
-        job = Job(rarityalarm, 30, repeat=True, context=(chat_id,rarity))
-        timers[chat_id] = job
-        job_queue.put(job)
-        #but first, save the pokemon already appeared
-        for pokemon in pokemon_rarity[rarity]:
-            with con:
-                cur = con.cursor()
-                cur.execute("SELECT * FROM pokemon WHERE pokemon_id = ?",(pokemon,))
-                rows = cur.fetchall()
-                for row in rows:
-                    encounter_id = str(row[0])
-                    spaw_point = str(row[1])
-                    pok_id = str(row[2])
-                    latitude = str(row[3])
-                    longitude = str(row[4])
-                    disappear = str(row[5])
-                    sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-        text = "Scanner on for " + rarity_value[rarity]
-        bot.sendMessage(chat_id, text)
-    except (IndexError, ValueError):
-        bot.sendMessage(chat_id, text='usage: /setbyrarity <#rarity> with 1 uncommon to 5 ultrarare')
+        with open(config_path, "r") as f:
+            pokemon_name[loc] = json.loads(f.read())
+    except:
+        pass
 
-
-
-def unset(bot, update):
-    """Removes the job if the user changed their mind"""
-    chat_id = update.message.chat_id
-
-    if chat_id not in timers:
-        bot.sendMessage(chat_id, text='You have no active scanner')
-        return
-
-    job = timers[chat_id]
-    job.schedule_removal()
-    del timers[chat_id]
-
-    bot.sendMessage(chat_id, text='scanner successfully unset!')
-
-
-def error(bot, update, error):
-    logger.warn('Update "%s" caused error "%s"' % (update, error))
-
-
+    
 def main():
+    logger.info('Starting...')
+    read_config()
+    read_pokemon_names("de")
+    read_pokemon_names("en")
+    read_pokemon_names("fr")
+    read_pokemon_names("zh_cn")
+
     #ask it to the bot father in telegram
-    updater = Updater("TOKEN")
+    token = config.get('TELEGRAM_TOKEN', None)
+    logger.info("Token: %s" % (token))
+    updater = Updater(token)
+    b = Bot(token)
+    logger.info("BotName: %s" % (b.name))
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
     # on different commands - answer in Telegram
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", start))
-    dp.add_handler(CommandHandler("set", set, pass_args=True, pass_job_queue=True))
-    dp.add_handler(CommandHandler("setbyrarity", setbyrarity,pass_args = True, pass_job_queue=True))
-    dp.add_handler(CommandHandler("unset", unset))
+    dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("add", add, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("addbyrarity", addByRarity, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("clear", clear))
+    dp.add_handler(CommandHandler("rem", remove, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("save", save))
+    dp.add_handler(CommandHandler("list", list))
+    dp.add_handler(CommandHandler("lang", lang, pass_args = True))
+
 
     # log all errors
     dp.add_error_handler(error)
@@ -200,12 +304,11 @@ def main():
     # Start the Bot
     updater.start_polling()
 
-    logger.info('pogomBOT-Telegram started!')
+    logger.info('Started!')
     # Block until the you presses Ctrl-C or the process receives SIGINT,
     # SIGTERM or SIGABRT. This should be used most of the time, since
     # start_polling() is non-blocking and will stop the bot gracefully.
     updater.idle()
-
 
 if __name__ == '__main__':
     main()

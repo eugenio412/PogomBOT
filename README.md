@@ -10,7 +10,7 @@ Made using [pogom](https://github.com/favll/pogom) and [python-telegram-bot](htt
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki)
 
 
-## Full List of [Commands]((https://github.com/eugenio412/PogomBOT/wiki/commands))
+## Full List of [Commands](https://github.com/eugenio412/PogomBOT/wiki/commands)
 
 See them at our [commands page](https://github.com/eugenio412/PogomBOT/wiki/commands)
 

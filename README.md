@@ -5,7 +5,7 @@ FINALLY a telegram bot, so you don't miss out rare pokemon anymore.
 
 Made using [pogom](https://github.com/favll/pogom)
 
-![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.png)
+![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.jpg)
 
 ## Installation:
 1. Clone the repository `https://github.com/eugenio412/PogomBOT.git`

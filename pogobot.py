@@ -56,16 +56,17 @@ rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"
 def help(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Sending help text.' % (chat_id))
-    bot.sendMessage(chat_id, text= '/help /start')
-    bot.sendMessage(chat_id, text= '/add <#pokedexID>')
-    bot.sendMessage(chat_id, text= '/add <#pokedexID1> <#pokedexID2> ...')
-    bot.sendMessage(chat_id, text= '/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare')
-    bot.sendMessage(chat_id, text= '/clear')
-    bot.sendMessage(chat_id, text= '/rem <#pokedexID>')
-    bot.sendMessage(chat_id, text= '/rem <#pokedexID1> <#pokedexID2> ...')
-    bot.sendMessage(chat_id, text= '/list')
-    bot.sendMessage(chat_id, text= '/save')
-    bot.sendMessage(chat_id, text= '/lang en')
+    text = "/help /start \n" + \
+    "/add <#pokedexID> \n" + \
+    "/add <#pokedexID1> <#pokedexID2> ... \n" + \
+    "/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare \n" + \
+    "/clear \n" + \
+    "/rem <#pokedexID> \n" + \
+    "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
+    "/list \n" + \
+    "/save \n" + \
+    "\lang en"
+    bot.sendMessage(chat_id, text)
     tmp = ''
     for key in pokemon_name:
         tmp += "%s, " % (key)

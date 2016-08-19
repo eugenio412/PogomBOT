@@ -17,7 +17,9 @@ import logging
 
 from datetime import datetime
 import os
+import io
 import sys
+import errno
 import json
 import threading
 
@@ -29,11 +31,13 @@ logger = logging.getLogger(__name__)
 
 jobs = dict()
 
-# User dependant
-search_ids = dict()
+# User dependant - dont add
 sent = dict()
-language = dict()
 locks = dict()
+
+# User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
+search_ids = dict()
+language = dict()
 
 #read the database
 con = lite.connect('pogom.db', check_same_thread=False)
@@ -69,6 +73,7 @@ def help(bot, update):
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
     "/list \n" + \
     "/save \n" + \
+    "/load \n" + \
     "/lang en"
     bot.sendMessage(chat_id, text)
     tmp = ''
@@ -130,6 +135,14 @@ def clear(bot, update):
     job = jobs[chat_id]
     job.schedule_removal()
     del jobs[chat_id]
+
+    # Remove from sent
+    del sent[chat_id]
+    # Remove from locks
+    del locks[chat_id]
+
+    # Remove from language
+    del language[chat_id]
     # Remove from search_ids
     del search_ids[chat_id]
 
@@ -175,12 +188,23 @@ def save(bot, update):
         return
 
     try:
-        tmp = '/add '
-        for x in search_ids[chat_id]:
-            tmp += "%i " % (x)
-        bot.sendMessage(chat_id, text = tmp)
+        saveUserConfig(chat_id)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
+
+def load(bot, update, job_queue):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Load.' % (chat_id))
+
+    loadUserConfig(chat_id)
+    if len(search_ids[chat_id]) > 0:
+        addJob(bot, update, job_queue)
+        list(bot, update)
+    else:
+        if chat_id in jobs:
+            job = jobs[chat_id]
+            job.schedule_removal()
+            del jobs[chat_id]
 
 def lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -219,13 +243,17 @@ def addJob(bot, update, job_queue):
             # Add to jobs
             jobs[chat_id] = job
             job_queue.put(job)
-            # Add to search_ids
-            search_ids[chat_id] = []
-            sent[chat_id] = dict()
-            # Set default language
-            language[chat_id] = config.get('DEFAULT_LANG', None)
-            # Acquire lock
-            locks[chat_id] = threading.Lock()
+            # User dependant - Save/Load
+            if chat_id not in search_ids:
+                search_ids[chat_id] = []
+            if chat_id not in language:
+                language[chat_id] = config.get('DEFAULT_LANG', None)
+
+            # User dependant
+            if chat_id not in sent:
+                sent[chat_id] = dict()
+            if chat_id not in locks:
+                locks[chat_id] = threading.Lock()
 
             text = "Scanner started."
             bot.sendMessage(chat_id, text)
@@ -252,10 +280,8 @@ def checkAndSend(bot, chat_id, pokemons):
         with con:
             cur = con.cursor()
 
-            # logger.info('%s' % (sqlquery))
             cur.execute(sqlquery)
             rows = cur.fetchall()
-            # logger.info('%i' % (len(rows)))
             lock.acquire()
             for row in rows:
                 encounter_id = str(row[0])
@@ -318,6 +344,51 @@ def read_pokemon_names(loc):
         # Pass to ignore if some files missing.
         pass
 
+def loadUserConfig(chat_id):
+    logger.info('[%s] loadUserConfig.' % (chat_id))
+    fileName = getUserConfigPath(chat_id)
+    try:
+        if os.path.isfile(fileName):
+            with open(fileName) as f:    
+                data = json.load(f)
+                # Load search ids
+                search = []
+                search_ids[chat_id] = search
+                for x in data['search_ids']:
+                    if not int(x) in search:
+                        search.append(int(x))
+                # Load language
+                language[chat_id] = data['language']
+        else:
+            logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
+            pass
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, e))
+
+def saveUserConfig(chat_id):
+    logger.info('[%s] saveUserConfig.' % (chat_id))
+    fileName = getUserConfigPath(chat_id)
+    try:
+        data = dict()
+        # Load search ids
+        data['search_ids'] = search_ids[chat_id]
+        # Load language
+        data['language'] = language[chat_id]
+        with open(fileName, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, e))
+
+def getUserConfigPath(chat_id):
+    logger.info('[%s] getUserConfigPath.' % (chat_id))
+    user_path = os.path.join(
+        os.path.dirname(sys.argv[0]), "userdata")
+    try:
+        os.makedirs(user_path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            logger.error('[%s] %s' % (chat_id, e))
+    return os.path.join(user_path, '%s.json' % chat_id)
     
 def main():
     logger.info('Starting...')
@@ -345,6 +416,7 @@ def main():
     dp.add_handler(CommandHandler("clear", clear))
     dp.add_handler(CommandHandler("rem", remove, pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("save", save))
+    dp.add_handler(CommandHandler("load", load, pass_job_queue=True))
     dp.add_handler(CommandHandler("list", list))
     dp.add_handler(CommandHandler("lang", lang, pass_args = True))
 

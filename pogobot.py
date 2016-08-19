@@ -11,7 +11,7 @@
 '''please READ FIRST the README.md'''
 
 import sqlite3 as lite
-from telegram.ext import Updater, CommandHandler, Job
+from telegram.ext import Updater, CommandHandler, Job , dispatcher
 from telegram import Bot
 import logging
 
@@ -53,6 +53,7 @@ rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"
 
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
+@dispatcher.run_async
 def help(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Sending help text.' % (chat_id))
@@ -73,12 +74,14 @@ def help(bot, update):
     tmp = tmp[:-2]
     bot.sendMessage(chat_id, text= '/lang [%s]' % (tmp))
 
+@dispatcher.run_async
 def start(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Starting.' % (chat_id))
     bot.sendMessage(chat_id, text='Hello!')
     help(bot, update)
 
+@dispatcher.run_async
 def add(bot, update, args, job_queue):
     addJob(bot, update, job_queue)
     chat_id = update.message.chat_id
@@ -94,6 +97,7 @@ def add(bot, update, args, job_queue):
     except (IndexError, ValueError):
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
+@dispatcher.run_async
 def addByRarity(bot, update, args, job_queue):
     addJob(bot, update, job_queue)
     chat_id = update.message.chat_id
@@ -111,6 +115,7 @@ def addByRarity(bot, update, args, job_queue):
     except (IndexError, ValueError):
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
+@dispatcher.run_async
 def clear(bot, update):
     """Removes the job if the user changed their mind"""
     chat_id = update.message.chat_id
@@ -129,6 +134,7 @@ def clear(bot, update):
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
+@dispatcher.run_async
 def remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Remove pokemon.' % (chat_id))
@@ -142,6 +148,7 @@ def remove(bot, update, args, job_queue):
     except (IndexError, ValueError):
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
+@dispatcher.run_async
 def list(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] List.' % (chat_id))
@@ -169,6 +176,7 @@ def save(bot, update):
         tmp += "%i " % (x)
     bot.sendMessage(chat_id, text = tmp)
 
+@dispatcher.run_async
 def lang(bot, update, args):
     chat_id = update.message.chat_id
     try:
@@ -187,14 +195,17 @@ def lang(bot, update, args):
     except (IndexError, ValueError):
             bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
+@dispatcher.run_async
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
+@dispatcher.run_async
 def alarm(bot, job):
     chat_id = job.context[0]
     logger.info('[%s] Checking alarm.' % (chat_id))
     checkAndSend(bot, chat_id, search_ids[chat_id])
 
+@dispatcher.run_async
 def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Adding job.' % (chat_id))
@@ -212,6 +223,7 @@ def addJob(bot, update, job_queue):
         text = "Scanner started."
         bot.sendMessage(chat_id, text)
 
+@dispatcher.run_async
 def checkAndSend(bot, chat_id, pokemons):
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
     sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("

@@ -244,7 +244,7 @@ def checkAndSend(bot, chat_id, pokemons):
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
                 #pokemon name for those who want it
-                bot.SendMessage(chat_id,text = title)
+                bot.sendMessage(chat_id,text = title)
                 bot.sendVenue(chat_id, latitude, longitude, title, address)
 
 def read_config():

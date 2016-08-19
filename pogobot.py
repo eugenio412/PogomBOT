@@ -19,6 +19,7 @@ from datetime import datetime
 import os
 import sys
 import json
+import threading
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -30,6 +31,7 @@ jobs = dict()
 search_ids = dict()
 sent = dict()
 language = dict()
+locks = dict()
 
 #read the database
 con = lite.connect('pogom.db', check_same_thread=False)
@@ -209,12 +211,15 @@ def addJob(bot, update, job_queue):
         sent[chat_id] = dict()
         # Set default language
         language[chat_id] = config.get('DEFAULT_LANG', None)
+        # Acquire lock
+        locks[chat_id] = threading.Lock()
 
         text = "Scanner started."
 
         bot.sendMessage(chat_id, text)
 
 def checkAndSend(bot, chat_id, pokemons):
+    lock = locks[chat_id]
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
     if len(pokemons) == 0:
         return
@@ -236,6 +241,7 @@ def checkAndSend(bot, chat_id, pokemons):
         cur.execute(sqlquery)
         rows = cur.fetchall()
         # logger.info('%i' % (len(rows)))
+        lock.acquire()
         for row in rows:
             encounter_id = str(row[0])
             spaw_point = str(row[1])
@@ -252,11 +258,13 @@ def checkAndSend(bot, chat_id, pokemons):
                 #pokemon name for those who want it
                 bot.sendMessage(chat_id,text = title)
                 bot.sendVenue(chat_id, latitude, longitude, title, address)
+    lock.release()
     # Clean already disappeared pokemon
     # 2016-08-19 20:10:10.000000
     # 2016-08-19 20:10:10
     try:
         current_time = datetime.utcnow()
+        lock.acquire()
         for encounter_id in mySent:
             time = mySent[encounter_id][5]
             time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
@@ -264,6 +272,7 @@ def checkAndSend(bot, chat_id, pokemons):
                 del mySent[encounter_id]
     except Exception as e:
         logger.error('checkAndSend: %s' % repr(e))
+    lock.release()
 
 def read_config():
     logger.info('Reading config.')

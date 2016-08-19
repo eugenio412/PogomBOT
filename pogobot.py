@@ -21,7 +21,7 @@ import sys
 import json
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ def help(bot, update):
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
     "/list \n" + \
     "/save \n" + \
-    "\lang en"
+    "/lang en"
     bot.sendMessage(chat_id, text)
     tmp = ''
     for key in pokemon_name:
@@ -185,7 +185,7 @@ def lang(bot, update, args):
             tmp = tmp[:-2]
             bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
     except (IndexError, ValueError):
-            bot.sendMessage(chat_id, text='usage: /lang <#language>')
+        bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
@@ -211,10 +211,14 @@ def addJob(bot, update, job_queue):
         language[chat_id] = config.get('DEFAULT_LANG', None)
 
         text = "Scanner started."
+
         bot.sendMessage(chat_id, text)
 
 def checkAndSend(bot, chat_id, pokemons):
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
+    if len(pokemons) == 0:
+        return
+
     sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
     for pokemon in pokemons:
         sqlquery += str(pokemon) + ','
@@ -224,6 +228,7 @@ def checkAndSend(bot, chat_id, pokemons):
     sqlquery += ' ORDER BY pokemon_id ASC'
 
     lan = language[chat_id]
+    mySent = sent[chat_id]
     with con:
         cur = con.cursor()
 
@@ -241,12 +246,24 @@ def checkAndSend(bot, chat_id, pokemons):
             title =  pokemon_name[lan][pok_id]
             address = "Disappear at min %s" % (disappear[14:16])
 
-            if encounter_id not in sent[chat_id]:
-                sent[chat_id][encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+            if encounter_id not in mySent:
+                mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
                 #pokemon name for those who want it
                 bot.sendMessage(chat_id,text = title)
                 bot.sendVenue(chat_id, latitude, longitude, title, address)
+    # Clean already disappeared pokemon
+    # 2016-08-19 20:10:10.000000
+    # 2016-08-19 20:10:10
+    try:
+        current_time = datetime.utcnow()
+        for encounter_id in mySent:
+            time = mySent[encounter_id][5]
+            time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
+            if time < current_time:
+                del mySent[encounter_id]
+    except Exception as e:
+        logger.error('checkAndSend: %s' % repr(e))
 
 def read_config():
     logger.info('Reading config.')

@@ -238,7 +238,7 @@ def checkAndSend(bot, chat_id, pokemons):
             longitude = str(row[4])
             disappear = str(row[5])
             title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %smin" % (disappear[14:16])
+            address = "Disappear at min %s" % (disappear[14:16])
 
             if encounter_id not in sent:
                 sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)

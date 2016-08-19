@@ -3,7 +3,7 @@
 
 FINALLY a telegram bot, so you don't miss out rare pokemon anymore.
 
-Made using [pogom](https://github.com/favll/pogom)
+Made using [pogom](https://github.com/favll/pogom) and [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 
 ## Installation
 

@@ -206,6 +206,7 @@ def addJob(bot, update, job_queue):
         job_queue.put(job)
         # Add to search_ids
         search_ids[chat_id] = []
+        sent[chat_id] = dict()
         # Set default language
         language[chat_id] = config.get('DEFAULT_LANG', None)
 
@@ -240,8 +241,8 @@ def checkAndSend(bot, chat_id, pokemons):
             title =  pokemon_name[lan][pok_id]
             address = "Disappear at min %s" % (disappear[14:16])
 
-            if encounter_id not in sent:
-                sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+            if encounter_id not in sent[chat_id]:
+                sent[chat_id][encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                 """Function to send the alarm message"""
                 #pokemon name for those who want it
                 bot.sendMessage(chat_id,text = title)

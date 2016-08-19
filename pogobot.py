@@ -28,6 +28,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - 
 logger = logging.getLogger(__name__)
 
 jobs = dict()
+
+# User dependant
 search_ids = dict()
 sent = dict()
 language = dict()
@@ -93,7 +95,8 @@ def add(bot, update, args, job_queue):
                 search.append(int(x))
         search.sort()
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
 def addByRarity(bot, update, args, job_queue):
@@ -110,7 +113,8 @@ def addByRarity(bot, update, args, job_queue):
                 search.append(int(x))
         search.sort()
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
 def clear(bot, update):
@@ -141,7 +145,8 @@ def remove(bot, update, args, job_queue):
             if int(x) in search:
                 search.remove(int(x))
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
 def list(bot, update):
@@ -152,11 +157,14 @@ def list(bot, update):
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
-    lan = language[chat_id]
-    tmp = 'List of notifications:\n'
-    for x in search_ids[chat_id]:
-        tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
-    bot.sendMessage(chat_id, text = tmp)
+    try:
+        lan = language[chat_id]
+        tmp = 'List of notifications:\n'
+        for x in search_ids[chat_id]:
+            tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
+        bot.sendMessage(chat_id, text = tmp)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def save(bot, update):
     chat_id = update.message.chat_id
@@ -166,10 +174,13 @@ def save(bot, update):
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
-    tmp = '/add '
-    for x in search_ids[chat_id]:
-        tmp += "%i " % (x)
-    bot.sendMessage(chat_id, text = tmp)
+    try:
+        tmp = '/add '
+        for x in search_ids[chat_id]:
+            tmp += "%i " % (x)
+        bot.sendMessage(chat_id, text = tmp)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -186,7 +197,8 @@ def lang(bot, update, args):
                 tmp += "%s, " % (key)
             tmp = tmp[:-2]
             bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
 def error(bot, update, error):
@@ -201,22 +213,24 @@ def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Adding job.' % (chat_id))
 
-    if chat_id not in jobs:
-        job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
-        # Add to jobs
-        jobs[chat_id] = job
-        job_queue.put(job)
-        # Add to search_ids
-        search_ids[chat_id] = []
-        sent[chat_id] = dict()
-        # Set default language
-        language[chat_id] = config.get('DEFAULT_LANG', None)
-        # Acquire lock
-        locks[chat_id] = threading.Lock()
+    try:
+        if chat_id not in jobs:
+            job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
+            # Add to jobs
+            jobs[chat_id] = job
+            job_queue.put(job)
+            # Add to search_ids
+            search_ids[chat_id] = []
+            sent[chat_id] = dict()
+            # Set default language
+            language[chat_id] = config.get('DEFAULT_LANG', None)
+            # Acquire lock
+            locks[chat_id] = threading.Lock()
 
-        text = "Scanner started."
-
-        bot.sendMessage(chat_id, text)
+            text = "Scanner started."
+            bot.sendMessage(chat_id, text)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
     lock = locks[chat_id]
@@ -232,33 +246,37 @@ def checkAndSend(bot, chat_id, pokemons):
     sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
     sqlquery += ' ORDER BY pokemon_id ASC'
 
-    lan = language[chat_id]
-    mySent = sent[chat_id]
-    with con:
-        cur = con.cursor()
+    try:
+        lan = language[chat_id]
+        mySent = sent[chat_id]
+        with con:
+            cur = con.cursor()
 
-        # logger.info('%s' % (sqlquery))
-        cur.execute(sqlquery)
-        rows = cur.fetchall()
-        # logger.info('%i' % (len(rows)))
-        lock.acquire()
-        for row in rows:
-            encounter_id = str(row[0])
-            spaw_point = str(row[1])
-            pok_id = str(row[2])
-            latitude = str(row[3])
-            longitude = str(row[4])
-            disappear = str(row[5])
-            title =  pokemon_name[lan][pok_id]
-            address = "Disappear at min %s" % (disappear[14:16])
+            # logger.info('%s' % (sqlquery))
+            cur.execute(sqlquery)
+            rows = cur.fetchall()
+            # logger.info('%i' % (len(rows)))
+            lock.acquire()
+            for row in rows:
+                encounter_id = str(row[0])
+                spaw_point = str(row[1])
+                pok_id = str(row[2])
+                latitude = str(row[3])
+                longitude = str(row[4])
+                disappear = str(row[5])
+                title =  pokemon_name[lan][pok_id]
+                address = "Disappear at min %s" % (disappear[14:16])
 
-            if encounter_id not in mySent:
-                mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-                """Function to send the alarm message"""
-                #pokemon name for those who want it
-                bot.sendMessage(chat_id,text = title)
-                bot.sendVenue(chat_id, latitude, longitude, title, address)
+                if encounter_id not in mySent:
+                    mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+                    """Function to send the alarm message"""
+                    #pokemon name for those who want it
+                    bot.sendMessage(chat_id,text = title)
+                    bot.sendVenue(chat_id, latitude, longitude, title, address)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
+
     # Clean already disappeared pokemon
     # 2016-08-19 20:10:10.000000
     # 2016-08-19 20:10:10
@@ -271,7 +289,7 @@ def checkAndSend(bot, chat_id, pokemons):
             if time < current_time:
                 del mySent[encounter_id]
     except Exception as e:
-        logger.error('checkAndSend: %s' % repr(e))
+        logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
 
 def read_config():
@@ -283,18 +301,21 @@ def read_config():
     try:
         with open(config_path, "r") as f:
             config = json.loads(f.read())
-    except:
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         config = {}
 
 def read_pokemon_names(loc):
-    logger.info('Reading pokemon names.')
+    logger.info('Reading pokemon names. [%s]' % loc)
     config_path = os.path.join(
         os.path.dirname(sys.argv[0]), "static/locales/pokemon." + loc + ".json")
 
     try:
         with open(config_path, "r") as f:
             pokemon_name[loc] = json.loads(f.read())
-    except:
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+        # Pass to ignore if some files missing.
         pass
 
     

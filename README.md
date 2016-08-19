@@ -10,7 +10,7 @@ Made using [pogom](https://github.com/favll/pogom)
 ## Installation:
 1. Clone the repository `https://github.com/eugenio412/PogomBOT.git`
 2. Install the dependencies `sudo pip3 install -r requirements.txt -U`
-3. Move the bot file (pogobot.py and config-bot.py) to your pogom folder (MUST BE IN THE SAME FOLDER AS pogom.db)
+3. Move the bot file (pogobot.py and config-bot.json) to your pogom folder (MUST BE IN THE SAME FOLDER AS pogom.db)
 4. Go to telegram and talk to the @BotFather
 5. Create a new bot and COPY THE TOKEN INSIDE the file config-bot.json in the place of TOKEN
 6. run `python3.4 pogobot.py`

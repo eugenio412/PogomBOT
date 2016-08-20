@@ -337,10 +337,10 @@ def read_config():
     global config
 
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding='utf-8') as f:
             config = json.loads(f.read())
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('%s' % (repr(e)))
         config = {}
 
 def read_pokemon_names(loc):
@@ -349,10 +349,10 @@ def read_pokemon_names(loc):
         os.path.dirname(sys.argv[0]), "static/locales/pokemon." + loc + ".json")
 
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             pokemon_name[loc] = json.loads(f.read())
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('%s' % (repr(e)))
         # Pass to ignore if some files missing.
         pass
 
@@ -361,7 +361,7 @@ def loadUserConfig(chat_id):
     fileName = getUserConfigPath(chat_id)
     try:
         if os.path.isfile(fileName):
-            with open(fileName) as f:    
+            with open(fileName, 'r', encoding='utf-8') as f:    
                 data = json.load(f)
                 # Load search ids
                 search = []

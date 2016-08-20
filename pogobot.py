@@ -324,11 +324,14 @@ def checkAndSend(bot, chat_id, pokemons):
     try:
         current_time = datetime.utcnow()
         lock.acquire()
+        toDel = []
         for encounter_id in mySent:
             time = mySent[encounter_id][5]
             time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
             if time < current_time:
-                del mySent[encounter_id]
+                toDel.append(encounter_id)
+        for encounter_id in toDel:
+            del mySent[encounter_id]
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()

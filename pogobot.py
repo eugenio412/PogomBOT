@@ -15,7 +15,7 @@ from telegram.ext import Updater, CommandHandler, Job
 from telegram import Bot
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import io
 import sys
@@ -188,7 +188,10 @@ def save(bot, update):
         return
 
     try:
-        saveUserConfig(chat_id)
+        if saveUserConfig(chat_id):
+            bot.sendMessage(chat_id, text='Save successful.')
+        else:
+            bot.sendMessage(chat_id, text='Save failed.')
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
@@ -196,7 +199,10 @@ def load(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Load.' % (chat_id))
 
-    loadUserConfig(chat_id)
+    if loadUserConfig(chat_id):
+        bot.sendMessage(chat_id, text='Load successful.')
+    else:
+        bot.sendMessage(chat_id, text='Load failed.')
     if len(search_ids[chat_id]) > 0:
         addJob(bot, update, job_queue)
         list(bot, update)
@@ -289,15 +295,21 @@ def checkAndSend(bot, chat_id, pokemons):
                 pok_id = str(row[2])
                 latitude = str(row[3])
                 longitude = str(row[4])
+                
                 disappear = str(row[5])
+                disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
+                delta = disappear_time - datetime.utcnow()
+                delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+                disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
+                
                 title =  pokemon_name[lan][pok_id]
-                address = "Disappear at min %s" % (disappear[14:16])
+                address = "Disappear at %s (%s)." % (disappear_time, delta)
 
                 if encounter_id not in mySent:
                     mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                     """Function to send the alarm message"""
                     #pokemon name for those who want it
-                    bot.sendMessage(chat_id,text = title)
+                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -359,11 +371,13 @@ def loadUserConfig(chat_id):
                         search.append(int(x))
                 # Load language
                 language[chat_id] = data['language']
+            return True
         else:
             logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
             pass
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, e))
+    return False
 
 def saveUserConfig(chat_id):
     logger.info('[%s] saveUserConfig.' % (chat_id))
@@ -376,8 +390,10 @@ def saveUserConfig(chat_id):
         data['language'] = language[chat_id]
         with open(fileName, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
+        return True
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, e))
+    return False
 
 def getUserConfigPath(chat_id):
     logger.info('[%s] getUserConfigPath.' % (chat_id))

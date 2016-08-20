@@ -15,20 +15,28 @@ from telegram.ext import Updater, CommandHandler, Job
 from telegram import Bot
 import logging
 
-from datetime import datetime
+from datetime import datetime, timezone
 import os
+import io
 import sys
+import errno
 import json
+import threading
 
 # Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
 jobs = dict()
-search_ids = dict()
+
+# User dependant - dont add
 sent = dict()
+locks = dict()
+
+# User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
+search_ids = dict()
 language = dict()
 
 #read the database
@@ -65,7 +73,8 @@ def help(bot, update):
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
     "/list \n" + \
     "/save \n" + \
-    "\lang en"
+    "/load \n" + \
+    "/lang en"
     bot.sendMessage(chat_id, text)
     tmp = ''
     for key in pokemon_name:
@@ -91,7 +100,8 @@ def add(bot, update, args, job_queue):
                 search.append(int(x))
         search.sort()
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
 def addByRarity(bot, update, args, job_queue):
@@ -108,7 +118,8 @@ def addByRarity(bot, update, args, job_queue):
                 search.append(int(x))
         search.sort()
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
 def clear(bot, update):
@@ -124,6 +135,14 @@ def clear(bot, update):
     job = jobs[chat_id]
     job.schedule_removal()
     del jobs[chat_id]
+
+    # Remove from sent
+    del sent[chat_id]
+    # Remove from locks
+    del locks[chat_id]
+
+    # Remove from language
+    del language[chat_id]
     # Remove from search_ids
     del search_ids[chat_id]
 
@@ -139,7 +158,8 @@ def remove(bot, update, args, job_queue):
             if int(x) in search:
                 search.remove(int(x))
         list(bot, update)
-    except (IndexError, ValueError):
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
 def list(bot, update):
@@ -150,11 +170,14 @@ def list(bot, update):
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
-    lan = language[chat_id]
-    tmp = 'List of notifications:\n'
-    for x in search_ids[chat_id]:
-        tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
-    bot.sendMessage(chat_id, text = tmp)
+    try:
+        lan = language[chat_id]
+        tmp = 'List of notifications:\n'
+        for x in search_ids[chat_id]:
+            tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
+        bot.sendMessage(chat_id, text = tmp)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def save(bot, update):
     chat_id = update.message.chat_id
@@ -164,10 +187,30 @@ def save(bot, update):
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
-    tmp = '/add '
-    for x in search_ids[chat_id]:
-        tmp += "%i " % (x)
-    bot.sendMessage(chat_id, text = tmp)
+    try:
+        if saveUserConfig(chat_id):
+            bot.sendMessage(chat_id, text='Save successful.')
+        else:
+            bot.sendMessage(chat_id, text='Save failed.')
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+
+def load(bot, update, job_queue):
+    chat_id = update.message.chat_id
+    logger.info('[%s] Load.' % (chat_id))
+
+    if loadUserConfig(chat_id):
+        bot.sendMessage(chat_id, text='Load successful.')
+    else:
+        bot.sendMessage(chat_id, text='Load failed.')
+    if len(search_ids[chat_id]) > 0:
+        addJob(bot, update, job_queue)
+        list(bot, update)
+    else:
+        if chat_id in jobs:
+            job = jobs[chat_id]
+            job.schedule_removal()
+            del jobs[chat_id]
 
 def lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -184,8 +227,9 @@ def lang(bot, update, args):
                 tmp += "%s, " % (key)
             tmp = tmp[:-2]
             bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
-    except (IndexError, ValueError):
-            bot.sendMessage(chat_id, text='usage: /lang <#language>')
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+        bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
@@ -199,21 +243,35 @@ def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Adding job.' % (chat_id))
 
-    if chat_id not in jobs:
-        job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
-        # Add to jobs
-        jobs[chat_id] = job
-        job_queue.put(job)
-        # Add to search_ids
-        search_ids[chat_id] = []
-        # Set default language
-        language[chat_id] = config.get('DEFAULT_LANG', None)
+    try:
+        if chat_id not in jobs:
+            job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
+            # Add to jobs
+            jobs[chat_id] = job
+            job_queue.put(job)
+            # User dependant - Save/Load
+            if chat_id not in search_ids:
+                search_ids[chat_id] = []
+            if chat_id not in language:
+                language[chat_id] = config.get('DEFAULT_LANG', None)
 
-        text = "Scanner started."
-        bot.sendMessage(chat_id, text)
+            # User dependant
+            if chat_id not in sent:
+                sent[chat_id] = dict()
+            if chat_id not in locks:
+                locks[chat_id] = threading.Lock()
+
+            text = "Scanner started."
+            bot.sendMessage(chat_id, text)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
+    lock = locks[chat_id]
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
+    if len(pokemons) == 0:
+        return
+
     sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
     for pokemon in pokemons:
         sqlquery += str(pokemon) + ','
@@ -222,30 +280,55 @@ def checkAndSend(bot, chat_id, pokemons):
     sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
     sqlquery += ' ORDER BY pokemon_id ASC'
 
-    lan = language[chat_id]
-    with con:
-        cur = con.cursor()
+    try:
+        lan = language[chat_id]
+        mySent = sent[chat_id]
+        with con:
+            cur = con.cursor()
 
-        # logger.info('%s' % (sqlquery))
-        cur.execute(sqlquery)
-        rows = cur.fetchall()
-        # logger.info('%i' % (len(rows)))
-        for row in rows:
-            encounter_id = str(row[0])
-            spaw_point = str(row[1])
-            pok_id = str(row[2])
-            latitude = str(row[3])
-            longitude = str(row[4])
-            disappear = str(row[5])
-            title =  pokemon_name[lan][pok_id]
-            address = "Disappear at min %s" % (disappear[14:16])
+            cur.execute(sqlquery)
+            rows = cur.fetchall()
+            lock.acquire()
+            for row in rows:
+                encounter_id = str(row[0])
+                spaw_point = str(row[1])
+                pok_id = str(row[2])
+                latitude = str(row[3])
+                longitude = str(row[4])
+                
+                disappear = str(row[5])
+                disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
+                delta = disappear_time - datetime.utcnow()
+                delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+                disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
+                
+                title =  pokemon_name[lan][pok_id]
+                address = "Disappear at %s (%s)." % (disappear_time, delta)
 
-            if encounter_id not in sent:
-                sent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-                """Function to send the alarm message"""
-                #pokemon name for those who want it
-                bot.sendMessage(chat_id,text = title)
-                bot.sendVenue(chat_id, latitude, longitude, title, address)
+                if encounter_id not in mySent:
+                    mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
+                    """Function to send the alarm message"""
+                    #pokemon name for those who want it
+                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                    bot.sendVenue(chat_id, latitude, longitude, title, address)
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+    lock.release()
+
+    # Clean already disappeared pokemon
+    # 2016-08-19 20:10:10.000000
+    # 2016-08-19 20:10:10
+    try:
+        current_time = datetime.utcnow()
+        lock.acquire()
+        for encounter_id in mySent:
+            time = mySent[encounter_id][5]
+            time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
+            if time < current_time:
+                del mySent[encounter_id]
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+    lock.release()
 
 def read_config():
     logger.info('Reading config.')
@@ -256,20 +339,72 @@ def read_config():
     try:
         with open(config_path, "r") as f:
             config = json.loads(f.read())
-    except:
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
         config = {}
 
 def read_pokemon_names(loc):
-    logger.info('Reading pokemon names.')
+    logger.info('Reading pokemon names. [%s]' % loc)
     config_path = os.path.join(
         os.path.dirname(sys.argv[0]), "static/locales/pokemon." + loc + ".json")
 
     try:
         with open(config_path, "r") as f:
             pokemon_name[loc] = json.loads(f.read())
-    except:
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+        # Pass to ignore if some files missing.
         pass
 
+def loadUserConfig(chat_id):
+    logger.info('[%s] loadUserConfig.' % (chat_id))
+    fileName = getUserConfigPath(chat_id)
+    try:
+        if os.path.isfile(fileName):
+            with open(fileName) as f:    
+                data = json.load(f)
+                # Load search ids
+                search = []
+                search_ids[chat_id] = search
+                for x in data['search_ids']:
+                    if not int(x) in search:
+                        search.append(int(x))
+                # Load language
+                language[chat_id] = data['language']
+            return True
+        else:
+            logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
+            pass
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, e))
+    return False
+
+def saveUserConfig(chat_id):
+    logger.info('[%s] saveUserConfig.' % (chat_id))
+    fileName = getUserConfigPath(chat_id)
+    try:
+        data = dict()
+        # Load search ids
+        data['search_ids'] = search_ids[chat_id]
+        # Load language
+        data['language'] = language[chat_id]
+        with open(fileName, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
+        return True
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, e))
+    return False
+
+def getUserConfigPath(chat_id):
+    logger.info('[%s] getUserConfigPath.' % (chat_id))
+    user_path = os.path.join(
+        os.path.dirname(sys.argv[0]), "userdata")
+    try:
+        os.makedirs(user_path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            logger.error('[%s] %s' % (chat_id, e))
+    return os.path.join(user_path, '%s.json' % chat_id)
     
 def main():
     logger.info('Starting...')
@@ -297,6 +432,7 @@ def main():
     dp.add_handler(CommandHandler("clear", clear))
     dp.add_handler(CommandHandler("rem", remove, pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("save", save))
+    dp.add_handler(CommandHandler("load", load, pass_job_queue=True))
     dp.add_handler(CommandHandler("list", list))
     dp.add_handler(CommandHandler("lang", lang, pass_args = True))
 

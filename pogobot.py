@@ -10,15 +10,18 @@
 
 '''please READ FIRST the README.md'''
 
+
+import sys
+if sys.version_info[0] < 3:
+    raise Exception("Must be using Python 3.")
+
 import sqlite3 as lite
 from telegram.ext import Updater, CommandHandler, Job
 from telegram import Bot
 import logging
-
 from datetime import datetime, timezone
 import os
 import io
-import sys
 import errno
 import json
 import threading

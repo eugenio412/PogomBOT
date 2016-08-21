@@ -92,8 +92,12 @@ def start(bot, update):
     help(bot, update)
 
 def add(bot, update, args, job_queue):
-    addJob(bot, update, job_queue)
     chat_id = update.message.chat_id
+    if len(args) <= 0:
+        bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
+        return
+
+    addJob(bot, update, job_queue)
     logger.info('[%s] Add pokemon.' % (chat_id))
 
     try:
@@ -108,8 +112,12 @@ def add(bot, update, args, job_queue):
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
 def addByRarity(bot, update, args, job_queue):
-    addJob(bot, update, job_queue)
     chat_id = update.message.chat_id
+    if len(args) <= 0:
+        bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
+        return
+
+    addJob(bot, update, job_queue)
     logger.info('[%s] Add pokemon by rarity.' % (chat_id))
 
     try:
@@ -126,8 +134,8 @@ def addByRarity(bot, update, args, job_queue):
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
 def clear(bot, update):
-    """Removes the job if the user changed their mind"""
     chat_id = update.message.chat_id
+    """Removes the job if the user changed their mind"""
     logger.info('[%s] Clear list.' % (chat_id))
 
     if chat_id not in jobs:
@@ -154,6 +162,10 @@ def clear(bot, update):
 def remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Remove pokemon.' % (chat_id))
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
 
     try:
         search = search_ids[chat_id]
@@ -217,6 +229,7 @@ def load(bot, update, job_queue):
 
 def lang(bot, update, args):
     chat_id = update.message.chat_id
+
     try:
         lan = args[0]
         logger.info('[%s] Setting lang.' % (chat_id))
@@ -234,6 +247,7 @@ def lang(bot, update, args):
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
+## Functions
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"' % (update, error))
 
@@ -390,9 +404,9 @@ def saveUserConfig(chat_id):
     fileName = getUserConfigPath(chat_id)
     try:
         data = dict()
-        # Load search ids
+        # Save search ids
         data['search_ids'] = search_ids[chat_id]
-        # Load language
+        # Save language
         data['language'] = language[chat_id]
         with open(fileName, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
@@ -441,7 +455,6 @@ def main():
     dp.add_handler(CommandHandler("load", load, pass_job_queue=True))
     dp.add_handler(CommandHandler("list", list))
     dp.add_handler(CommandHandler("lang", lang, pass_args = True))
-
 
     # log all errors
     dp.add_error_handler(error)

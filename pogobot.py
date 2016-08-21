@@ -72,17 +72,17 @@ def callback(bot, update):
     from_user_name = query.from_user.first_name + " " + query.from_user.last_name
     text = query.data
     bot.answerCallbackQuery(query.id, text="loading")
-    if query.data is "clear":
+    if query.data == "clear":
         clear(bot,update)
-    if query.data is "remove":
+    if query.data == "remove":
         remove(bot,update)
-    if query.data is "list":
+    if query.data == "list":
         list(bot,update)
-    if query.data is "save":
+    if query.data == "save":
         save(bot,update)
-    if query.data is "load":
+    if query.data == "load":
         load(bot,update)
-    if query.data is "lang":
+    if query.data == "lang":
         lang(bot.update)
 
 # Define a few command handlers. These usually take the two arguments bot and
@@ -201,9 +201,9 @@ def remove(bot, update, args, job_queue):
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
 def list(bot, update):
-    chat_id = update.message.chat_id
+    query = update.callback_query
+    chat_id = query.message.chat_id
     logger.info('[%s] List.' % (chat_id))
-
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
@@ -220,7 +220,6 @@ def list(bot, update):
 def save(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Save.' % (chat_id))
-
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return

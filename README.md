@@ -9,6 +9,9 @@ Made using [pogom](https://github.com/favll/pogom) and [python-telegram-bot](htt
 
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki).
 
+## Update Instructions (PogomBOT CHANGED, BE CAREFULL)
+
+See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/update-guide).
 
 ## Full List of Commands
 
@@ -19,5 +22,8 @@ See them at our [commands page](https://github.com/eugenio412/PogomBOT/wiki/comm
 
 See it at our [troubleshooting page](https://github.com/eugenio412/PogomBOT/wiki/troubleshooting).
 
+## Join out telegram group
+
+IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators write to our telegram group: http://telegram.me/pogomBOTgroup
 
 ![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.jpg)

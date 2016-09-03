@@ -42,10 +42,6 @@ locks = dict()
 search_ids = dict()
 language = dict()
 
-#read the database
-con = lite.connect('pogom.db', check_same_thread=False)
-cur = con.cursor()
-
 #pokemon:
 pokemon_name = dict()
 
@@ -326,7 +322,8 @@ def checkAndSend(bot, chat_id, pokemons):
                     mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
                     """Function to send the alarm message"""
                     #pokemon name for those who want it
-                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                    if not config.get('SEND_MAP_ONLY', True):
+                        bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -351,9 +348,9 @@ def checkAndSend(bot, chat_id, pokemons):
     lock.release()
 
 def read_config():
-    logger.info('Reading config.')
     config_path = os.path.join(
         os.path.dirname(sys.argv[0]), "config-bot.json")
+    logger.info('Reading config: <%s>' % config_path)
     global config
 
     try:
@@ -362,11 +359,18 @@ def read_config():
     except Exception as e:
         logger.error('%s' % (repr(e)))
         config = {}
+    report_config()
+
+def report_config():
+    logger.info('TELEGRAM_TOKEN: <%s>' % (config.get('TELEGRAM_TOKEN', None)))
+    logger.info('POGOM_PATH: <%s>' % (config.get('POGOM_PATH', None)))
+    logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
+    logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
 
 def read_pokemon_names(loc):
-    logger.info('Reading pokemon names. [%s]' % loc)
+    logger.info('Reading pokemon names. <%s>' % loc)
     config_path = os.path.join(
-        os.path.dirname(sys.argv[0]), "static/locales/pokemon." + loc + ".json")
+        config.get('POGOM_PATH', None), "static/locales/pokemon." + loc + ".json")
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -434,12 +438,17 @@ def main():
     read_pokemon_names("fr")
     read_pokemon_names("zh_cn")
 
+    #read the database
+    global con
+    db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
+    con = lite.connect(db_path, check_same_thread=False)
+    cur = con.cursor()
+
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)
-    logger.info("Token: %s" % (token))
     updater = Updater(token)
     b = Bot(token)
-    logger.info("BotName: %s" % (b.name))
+    logger.info("BotName: <%s>" % (b.name))
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher

@@ -25,6 +25,7 @@ import io
 import errno
 import json
 import threading
+import fnmatch
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -433,10 +434,12 @@ def getUserConfigPath(chat_id):
 def main():
     logger.info('Starting...')
     read_config()
-    read_pokemon_names("de")
-    read_pokemon_names("en")
-    read_pokemon_names("fr")
-    read_pokemon_names("zh_cn")
+
+    # Read lang files
+    path_to_local = os.path.join(config.get('POGOM_PATH', None), "static/locales/")
+    for file in os.listdir(path_to_local):
+        if fnmatch.fnmatch(file, 'pokemon.*.json'):
+            read_pokemon_names(file.split('.')[1])
 
     #read the database
     global con

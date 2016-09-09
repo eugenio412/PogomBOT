@@ -309,13 +309,13 @@ def checkAndSend(bot, chat_id, pokemons):
                 pok_id = str(row[2])
                 latitude = str(row[3])
                 longitude = str(row[4])
-                
+
                 disappear = str(row[5])
                 disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
                 delta = disappear_time - datetime.utcnow()
                 delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
                 disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
-                
+
                 title =  pokemon_name[lan][pok_id]
                 address = "Disappear at %s (%s)." % (disappear_time, delta)
 
@@ -370,8 +370,7 @@ def report_config():
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
-    config_path = os.path.join(
-        config.get('POGOM_PATH', None), "static/locales/pokemon." + loc + ".json")
+    config_path = "locales/pokemon." + loc + ".json"
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -386,7 +385,7 @@ def loadUserConfig(chat_id):
     fileName = getUserConfigPath(chat_id)
     try:
         if os.path.isfile(fileName):
-            with open(fileName, 'r', encoding='utf-8') as f:    
+            with open(fileName, 'r', encoding='utf-8') as f:
                 data = json.load(f)
                 # Load search ids
                 search = []
@@ -430,13 +429,13 @@ def getUserConfigPath(chat_id):
         if e.errno != errno.EEXIST:
             logger.error('[%s] %s' % (chat_id, e))
     return os.path.join(user_path, '%s.json' % chat_id)
-    
+
 def main():
     logger.info('Starting...')
     read_config()
 
     # Read lang files
-    path_to_local = os.path.join(config.get('POGOM_PATH', None), "static/locales/")
+    path_to_local = "locales/"
     for file in os.listdir(path_to_local):
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
@@ -482,3 +481,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

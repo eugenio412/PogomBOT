@@ -15,6 +15,10 @@ See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki).
 
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/update-guide).
 
+## New IV feature
+
+Now our bot can send you the notification with the Iv number, but only with PokemonGO-Map, follow the guide for the beat branch at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/IV-notification-guide).
+
 ## Full List of Commands
 
 See them at our [commands page](https://github.com/eugenio412/PogomBOT/wiki/commands).

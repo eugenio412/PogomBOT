@@ -448,7 +448,7 @@ def main():
         sql_pattern = 'mysql://(.*?):(.*?)@(.*?):(\d*)/(\S+)'
         (user, passw, host, port, db) = re.compile(sql_pattern).findall(config.get('POGOM_SQL',""))[0]
         logger.info('Connecting to remote database')
-        con = pymysql.connect(user=user,password=passw,host=host,port=port,database=db)
+        con = pymysql.connect(user=user,password=passw,host=host,port=int(port),database=db)
     else:
         db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
         logger.info('Connecting to local database')

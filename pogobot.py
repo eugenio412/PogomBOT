@@ -452,7 +452,7 @@ def main():
 
     #read the database
     global con
-    if config.get('POGOM_SQL') != 'local':
+    if config.get('POGOM_SQL') != 'false':
         sql_pattern = 'mysql://(.*?):(.*?)@(.*?):(\d*)/(\S+)'
         (user, passw, host, port, db) = re.compile(sql_pattern).findall(config.get('POGOM_SQL',""))[0]
         logger.info('Connecting to remote database')

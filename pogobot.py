@@ -315,9 +315,13 @@ def checkAndSend(bot, chat_id, pokemons):
                 delta = disappear_time - datetime.utcnow()
                 delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
                 disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
-
+                individual_attack = int(row[6])
+                individual_defense = int(row[7])
+                individual_stamina = int(row[8])
+                iv = str((individual_attack +  individual_defense + individual_stamina) / 45 * 100)
+                iv = iv[0:4]
                 title =  pokemon_name[lan][pok_id]
-                address = "Disappear at %s (%s)." % (disappear_time, delta)
+                address = "Disappear at %s (%s).IV:%s" % (disappear_time, delta,iv)
 
                 if encounter_id not in mySent:
                     mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
@@ -370,7 +374,7 @@ def report_config():
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
-    config_path = "locales/pokemon." + loc + ".json"
+    config_path = os.path.dirname(os.path.realpath(__file__))+"/locales/pokemon." + loc + ".json"
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -435,8 +439,12 @@ def main():
     read_config()
 
     # Read lang files
-    path_to_local = "locales/"
-    for file in os.listdir(path_to_local):
+    path_to_local = "/locales/"
+    real_path_to_local = os.path.dirname(os.path.realpath(__file__))+path_to_local
+
+    print (real_path_to_local)
+
+    for file in os.listdir(real_path_to_local):
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
 
@@ -481,4 +489,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

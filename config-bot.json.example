@@ -2,6 +2,5 @@
 	"TELEGRAM_TOKEN": "TOKEN",
 	"POGOM_PATH": "/PATH/TO/POGOM",
 	"DEFAULT_LANG": "en",
-	"SEND_MAP_ONLY": true,
-	"POGOM_SQL": "false"
+	"SEND_MAP_ONLY": true
 }

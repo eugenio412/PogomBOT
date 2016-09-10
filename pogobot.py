@@ -16,8 +16,8 @@ if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3.")
 
 import sqlite3 as lite
-from telegram.ext import Updater, CommandHandler, Job
-from telegram import Bot
+from telegram.ext import Updater, CommandHandler, Job,CallbackQueryHandler,ChosenInlineResultHandler
+from telegram import Bot,KeyboardButton,InlineKeyboardButton, InlineKeyboardMarkup
 import logging
 from datetime import datetime, timezone
 import os
@@ -59,28 +59,51 @@ pokemon_rarity = [[],
 
 rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"]
 
+def callback(bot, update):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+    text_reply_to = query.message.text
+    chat_type = query.message.chat.type
+    user_id = query.from_user.id
+    from_user_id = query.from_user.id
+    from_user_name = query.from_user.first_name + " " + query.from_user.last_name
+    text = query.data
+    bot.answerCallbackQuery(query.id, text="loading")
+    if query.data == "clear":
+        clear(bot,update)
+    if query.data == "remove":
+        remove(bot,update)
+    if query.data == "list":
+        list(bot,update)
+    if query.data == "save":
+        save(bot,update)
+    if query.data == "load":
+        load(bot,update)
+    if query.data == "lang":
+        lang(bot.update)
+
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
 def help(bot, update):
+    custom_keyboard = [
+                        [InlineKeyboardButton(text = "ADD POKEMON" ,callback_data="add_pokemon")],\
+                        [InlineKeyboardButton(text = "ADD by Rarity" ,callback_data = "add_by_rarity")],\
+                        [InlineKeyboardButton(text = "CLEAR", callback_data ="clear"),\
+                        InlineKeyboardButton(text = "REMOVE", callback_data ="remove")],\
+                        [InlineKeyboardButton(text = "LIST", callback_data ="list"),\
+                        InlineKeyboardButton(text = "SAVE", callback_data ="save")],\
+                        [InlineKeyboardButton(text = "LOAD", callback_data ="load"),\
+                        InlineKeyboardButton(text = "LANG", callback_data ="lang")],\
+                        ]
     chat_id = update.message.chat_id
     logger.info('[%s] Sending help text.' % (chat_id))
-    text = "/help /start \n" + \
-    "/add <#pokedexID> \n" + \
-    "/add <#pokedexID1> <#pokedexID2> ... \n" + \
-    "/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare \n" + \
-    "/clear \n" + \
-    "/rem <#pokedexID> \n" + \
-    "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
-    "/list \n" + \
-    "/save \n" + \
-    "/load \n" + \
-    "/lang en"
-    bot.sendMessage(chat_id, text)
+    text = "What do you want to do?"
+    bot.sendMessage(chat_id, text,reply_markup = InlineKeyboardMarkup(custom_keyboard))
     tmp = ''
     for key in pokemon_name:
         tmp += "%s, " % (key)
     tmp = tmp[:-2]
-    bot.sendMessage(chat_id, text= '/lang [%s]' % (tmp))
+    bot.sendMessage(chat_id, text= 'available languages: [%s]' % (tmp))
 
 def start(bot, update):
     chat_id = update.message.chat_id
@@ -175,9 +198,9 @@ def remove(bot, update, args, job_queue):
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
 def list(bot, update):
-    chat_id = update.message.chat_id
+    query = update.callback_query
+    chat_id = query.message.chat_id
     logger.info('[%s] List.' % (chat_id))
-
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
@@ -194,7 +217,6 @@ def list(bot, update):
 def save(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Save.' % (chat_id))
-
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
@@ -469,6 +491,9 @@ def main():
 
     # log all errors
     dp.add_error_handler(error)
+
+    #callback Function
+    dp.add_handler(CallbackQueryHandler(callback))
 
     # Start the Bot
     updater.start_polling()

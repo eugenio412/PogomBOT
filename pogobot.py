@@ -434,26 +434,26 @@ def main():
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
 
-    dbType = config.get('DB_TYPE', 'sqlite')
-    scannerType = config.get('SCANNER_TYPE', 'pogom')
+    dbType = config.get('DB_TYPE', None)
+    scannerName = config.get('SCANNER_NAME', None)
     global dataSource
     dataSource = None
     if dbType == 'sqlite':
-        if scannerType == 'pogom':
+        if scannerName == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
-        elif scannerType == 'pokemongo-map':
+        elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
-        elif scannerType == 'pokemongo-map-iv':
+        elif scannerName == 'pokemongo-map-iv':
             dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
     elif dbType == 'mysql':
-        if scannerType == 'pogom':
+        if scannerName == 'pogom':
             dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
-        elif scannerType == 'pokemongo-map':
+        elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
-        elif scannerType == 'pokemongo-map-iv':
+        elif scannerName == 'pokemongo-map-iv':
             dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
     if not dataSource:
-        raise Exception("The combination SCANNER_TYPE, DB_TYPE is not available: %s,%s" % (scannerType, dbType))
+        raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)

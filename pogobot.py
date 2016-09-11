@@ -26,6 +26,7 @@ import errno
 import json
 import threading
 import fnmatch
+import DataSources
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -286,46 +287,38 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-    sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
-    for pokemon in pokemons:
-        sqlquery += str(pokemon) + ','
-    sqlquery = sqlquery[:-1]
-    sqlquery += ')'
-    sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
-    sqlquery += ' ORDER BY pokemon_id ASC'
+    allpokes = dataSource.getPokemonByIds(pokemons)
 
     try:
         lan = language[chat_id]
         mySent = sent[chat_id]
-        with con:
-            cur = con.cursor()
+        lock.acquire()
 
-            cur.execute(sqlquery)
-            rows = cur.fetchall()
-            lock.acquire()
-            for row in rows:
-                encounter_id = str(row[0])
-                spaw_point = str(row[1])
-                pok_id = str(row[2])
-                latitude = str(row[3])
-                longitude = str(row[4])
+        for pokemon in allpokes:
+            encounter_id = pokemon.getEncounterID()
+            spaw_point = pokemon.getSpawnpointID()
+            pok_id = pokemon.getPokemonID()
+            latitude = pokemon.getLatitude()
+            longitude = pokemon.getLongitude()
+            disappear_time = pokemon.getDisappearTime()
+            iv = pokemon.getIVs()
 
-                disappear = str(row[5])
-                disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
-                delta = disappear_time - datetime.utcnow()
-                delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
-                disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
+            delta = disappear_time - datetime.utcnow()
+            delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
 
-                title =  pokemon_name[lan][pok_id]
-                address = "Disappear at %s (%s)." % (disappear_time, delta)
+            title =  pokemon_name[lan][pok_id]
+            address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
 
-                if encounter_id not in mySent:
-                    mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-                    """Function to send the alarm message"""
-                    #pokemon name for those who want it
-                    if not config.get('SEND_MAP_ONLY', True):
-                        bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
-                    bot.sendVenue(chat_id, latitude, longitude, title, address)
+            if iv:
+                address += " IV:%s" % (iv)
+
+            if encounter_id not in mySent:
+                mySent[encounter_id] = disappear_time
+                """Function to send the alarm message"""
+                #pokemon name for those who want it
+                if not config.get('SEND_MAP_ONLY', True):
+                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                bot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
@@ -338,8 +331,7 @@ def checkAndSend(bot, chat_id, pokemons):
         lock.acquire()
         toDel = []
         for encounter_id in mySent:
-            time = mySent[encounter_id][5]
-            time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
+            time = mySent[encounter_id]
             if time < current_time:
                 toDel.append(encounter_id)
         for encounter_id in toDel:
@@ -364,7 +356,9 @@ def read_config():
 
 def report_config():
     logger.info('TELEGRAM_TOKEN: <%s>' % (config.get('TELEGRAM_TOKEN', None)))
-    logger.info('POGOM_PATH: <%s>' % (config.get('POGOM_PATH', None)))
+    logger.info('SCANNER_NAME: <%s>' % (config.get('SCANNER_NAME', None)))
+    logger.info('DB_TYPE: <%s>' % (config.get('DB_TYPE', None)))
+    logger.info('DB_CONNECT: <%s>' % (config.get('DB_CONNECT', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
 
@@ -440,11 +434,25 @@ def main():
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
 
-    #read the database
-    global con
-    db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
-    con = lite.connect(db_path, check_same_thread=False)
-    cur = con.cursor()
+    dbType = config.get('DB_TYPE', 'sqlite')
+    scannerType = config.get('SCANNER_TYPE', 'pogom')
+    global dataSource
+    if dbType == 'sqlite':
+        if scannerType == 'pogom':
+            dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
+        elif scannerType == 'pokemongo-map':
+            dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
+        elif scannerType == 'pokemongo-map-iv':
+            dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
+    elif dbType == 'mysql':
+        if scannerType == 'pogom':
+            dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
+        elif scannerType == 'pokemongo-map':
+            dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
+        elif scannerType == 'pokemongo-map-iv':
+            dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
+    if not dataSource:
+        raise Exception("The combination SCANNER_TYPE, DB_TYPE is not available: %s,%s" % (scannerType, dbType))
 
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)

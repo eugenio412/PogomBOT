@@ -5,6 +5,7 @@ from datetime import datetime
 import logging
 
 import pymysql
+import re
 
 logger = logging.getLogger(__name__)
 

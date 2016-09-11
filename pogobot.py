@@ -16,6 +16,7 @@ if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3.")
 
 import sqlite3 as lite
+import pymysql
 from telegram.ext import Updater, CommandHandler, Job
 from telegram import Bot
 import logging
@@ -26,6 +27,7 @@ import errno
 import json
 import threading
 import fnmatch
+import re
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -367,6 +369,7 @@ def report_config():
     logger.info('POGOM_PATH: <%s>' % (config.get('POGOM_PATH', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
+    logger.info('POGOM_SQL: <%s>' % (config.get('POGOM_SQL', 'false')))
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
@@ -442,8 +445,15 @@ def main():
 
     #read the database
     global con
-    db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
-    con = lite.connect(db_path, check_same_thread=False)
+    if config.get('POGOM_SQL','false') != 'false':
+        sql_pattern = 'mysql://(.*?):(.*?)@(.*?):(\d*)/(\S+)'
+        (user, passw, host, port, db) = re.compile(sql_pattern).findall(config.get('POGOM_SQL',''))[0]
+        logger.info('Connecting to remote database')
+        con = pymysql.connect(user=user,password=passw,host=host,port=int(port),database=db)
+    else:
+        db_path = os.path.join(config.get('POGOM_PATH', ''), 'pogom.db')
+        logger.info('Connecting to local database')
+        con = lite.connect(db_path, check_same_thread=False)
     cur = con.cursor()
 
     #ask it to the bot father in telegram

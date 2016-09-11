@@ -437,6 +437,7 @@ def main():
     dbType = config.get('DB_TYPE', 'sqlite')
     scannerType = config.get('SCANNER_TYPE', 'pogom')
     global dataSource
+    dataSource = None
     if dbType == 'sqlite':
         if scannerType == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))

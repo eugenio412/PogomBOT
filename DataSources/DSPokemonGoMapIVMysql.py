@@ -52,7 +52,7 @@ class DSPokemonGoMapIVMysql():
 					move2 = row[10]
 					#need to import moves.json at this point
 					iv = None
-					if individual_attack and individual_defense and individual_stamina and move1 and move2:
+					if individual_attack and individual_defense and individual_stamina:
 						iv = str((int(individual_attack) +  int(individual_defense) + int(individual_stamina)) / 45 * 100)
 						iv = iv[0:4]
 

@@ -315,7 +315,7 @@ def checkAndSend(bot, chat_id, pokemons):
             address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
 
             if iv:
-                address += " IV:%s" % (iv)
+                title += " IV:%s" % (iv)
 
             if move1 and move2:
                 # Use language if other move languages are available.

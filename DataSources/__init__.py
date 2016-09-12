@@ -11,3 +11,7 @@ from .DSPokemonGoMapMysql import DSPokemonGoMapMysql
 # Pokemongo-map with IV
 from .DSPokemonGoMapIV import DSPokemonGoMapIV
 from .DSPokemonGoMapIVMysql import DSPokemonGoMapIVMysql
+
+# Geolocation data
+
+from .GeoLocation import GeoLocation

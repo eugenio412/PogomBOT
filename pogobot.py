@@ -358,9 +358,9 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-    allpokes = dataSource.getPokemonByIds(pokemons)
 
     try:
+        allpokes = dataSource.getPokemonByIds(pokemons)
         lan = language[chat_id]
         mySent = sent[chat_id]
         lock.acquire()

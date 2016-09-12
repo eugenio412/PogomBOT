@@ -1,6 +1,8 @@
 {
 	"TELEGRAM_TOKEN": "TOKEN",
-	"POGOM_PATH": "/PATH/TO/POGOM",
+	"SCANNER_NAME": "pogom",
+	"DB_TYPE": "sqlite",
+	"DB_CONNECT": "/PATH/TO/POGOM",
 	"DEFAULT_LANG": "en",
 	"SEND_MAP_ONLY": true
 }

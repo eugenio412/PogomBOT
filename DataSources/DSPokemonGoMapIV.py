@@ -18,7 +18,7 @@ class DSPokemonGoMapIV():
 	def getPokemonByIds(self, ids):
 		pokelist = []
 
-		sqlquery = "SELECT encounter_id, spawnpoint_id, pokemon_id, latitude, longitude, disappear_time, individual_attack, individual_defense, individual_stamina FROM pokemon WHERE pokemon_id in ("
+		sqlquery = "SELECT encounter_id, spawnpoint_id, pokemon_id, latitude, longitude, disappear_time, individual_attack, individual_defense, individual_stamina,move_1,move_2 FROM pokemon WHERE pokemon_id in ("
 		for pokemon in ids:
 			sqlquery += str(pokemon) + ','
 		sqlquery = sqlquery[:-1]

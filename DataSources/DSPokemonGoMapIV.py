@@ -45,13 +45,17 @@ class DSPokemonGoMapIV():
 					individual_attack = row[6]
 					individual_defense = row[7]
 					individual_stamina = row[8]
-
+					
+					move1 = row[9]
+					move2 = row[10]
+					#need to import moves.json at this point
+					
 					iv = None
 					if individual_attack and individual_defense and individual_stamina:
 						iv = str((int(individual_attack) +  int(individual_defense) + int(individual_stamina)) / 45 * 100)
 						iv = iv[0:4]
 
-					poke = DSPokemon(encounter_id, spaw_point, pok_id, latitude, longitude, disappear_time, iv)
+					poke = DSPokemon(encounter_id, spaw_point, pok_id, latitude, longitude, disappear_time, iv,move1,move2)
 					pokelist.append(poke)
 		except Exception as e:
 			logger.error('[%s] %s' % (chat_id, repr(e)))

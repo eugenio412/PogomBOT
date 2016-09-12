@@ -50,11 +50,15 @@ class DSPokemonGoMapIVMysql():
 					individual_defense = row[7]
 					individual_stamina = row[8]
 					
-					move1 = str(row[9])
-					move2 = str(row[10])
+					if row[9] is not None:
+						move1 = str(row[9])
+						move2 = str(row[10])
+					else:
+						move1 = None
+						move2 = None
 
 					iv = None
-					if individual_attack and individual_defense and individual_stamina:
+					if individual_attack is not None:
 						iv = str((int(individual_attack) +  int(individual_defense) + int(individual_stamina)) / 45 * 100)
 						iv = iv[0:4]
 

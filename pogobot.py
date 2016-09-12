@@ -73,10 +73,13 @@ def cmd_help(bot, update):
     text = "/help /start \n" + \
     "/add <#pokedexID> \n" + \
     "/add <#pokedexID1> <#pokedexID2> ... \n" + \
-    "/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare \n" + \
+    "/addbyrarity <#rarity> - With 1 uncommon to 5 ultrarare \n" + \
     "/clear \n" + \
     "/rem <#pokedexID> \n" + \
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
+    "Send <location> - Search a location \n" +\
+    "/radius <m> - Search radius in m \n" +\
+    "/remloc - Clear location data\n" +\
     "/list \n" + \
     "/save \n" + \
     "/load \n" + \
@@ -270,8 +273,8 @@ def cmd_location(bot, update):
     chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %f km"
-                                      % (user_location.latitude, user_location.longitude, location_radius))
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
+                                      % (user_location.latitude, user_location.longitude, location_radius*1000))
 
 def cmd_radius(bot, update, args):
 
@@ -292,18 +295,18 @@ def cmd_radius(bot, update, args):
     chat_id, user_location[0], user_location[1], user_location[2]))
 
     if len(args) < 1:
-        bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %f km"
-                                      % (location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+        bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
+                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
 
     # Change the radius
-    location_ids[chat_id] = [user_location[0], user_location[1], float(args[0])]
+    location_ids[chat_id] = [user_location[0], user_location[1], float(args[0])/1000]
 
     logger.info('[%s] Set Location as Lat %s, Lon %s, R %s' % (
         chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
 
     # Send confirmation
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %f km"
-                                      % (location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
+                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
@@ -394,7 +397,7 @@ def checkAndSend(bot, chat_id, pokemons):
             address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
 
             if iv:
-                address += " IV:%s" % (iv)
+                title += " IV:%s" % (iv)
 
             if move1 and move2:
                 # Use language if other move languages are available.

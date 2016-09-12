@@ -302,6 +302,8 @@ def checkAndSend(bot, chat_id, pokemons):
             longitude = pokemon.getLongitude()
             disappear_time = pokemon.getDisappearTime()
             iv = pokemon.getIVs()
+            move1 = pokemon.getMove1()
+            move2 = pokemon.getMove2()
 
             delta = disappear_time - datetime.utcnow()
             delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
@@ -311,6 +313,11 @@ def checkAndSend(bot, chat_id, pokemons):
 
             if iv:
                 address += " IV:%s" % (iv)
+
+            if move1 and move2:
+                move1Name = str(move1)
+                move2Name = str(move2)
+                address += " Moves: %s,%s" % (move1Name, move2Name)
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time

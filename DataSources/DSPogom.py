@@ -18,7 +18,8 @@ class DSPogom():
 	def getPokemonByIds(self, ids):
 		pokelist = []
 
-		sqlquery = "SELECT encounter_id, spawnpoint_id, pokemon_id, latitude, longitude, disappear_time FROM pokemon WHERE pokemon_id in ("
+		sqlquery = ("SELECT encounter_id, spawnpoint_id, pokemon_id, latitude, longitude, disappear_time "
+			"FROM pokemon WHERE pokemon_id in (")
 		for pokemon in ids:
 			sqlquery += str(pokemon) + ','
 		sqlquery = sqlquery[:-1]
@@ -42,7 +43,7 @@ class DSPogom():
 					disappear = str(row[5])
 					disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
 
-					poke = DSPokemon(encounter_id, spaw_point, pok_id, latitude, longitude, disappear_time, None)
+					poke = DSPokemon(encounter_id, spaw_point, pok_id, latitude, longitude, disappear_time, None, None, None)
 					pokelist.append(poke)
 		except Exception as e:
 			logger.error('[%s] %s' % (chat_id, repr(e)))

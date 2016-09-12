@@ -12,24 +12,20 @@
 
 
 import sys
-
-
 if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3.")
 
 import sqlite3 as lite
-import re
-from telegram.ext import Updater, CommandHandler, Job, MessageHandler, Filters
-import pymysql
+from telegram.ext import Updater, CommandHandler, Job
 from telegram import Bot
 import logging
 from datetime import datetime, timezone
 import os
+import io
 import errno
 import json
 import threading
 import fnmatch
-from GeoLocation import *
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -46,8 +42,6 @@ locks = dict()
 # User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
 search_ids = dict()
 language = dict()
-location_ids = dict()
-location_radius = 5
 
 #pokemon:
 pokemon_name = dict()
@@ -136,33 +130,6 @@ def addByRarity(bot, update, args, job_queue):
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
-
-def location(bot, update):
-    chat_id = update.message.chat_id
-    user_location = update.message.location
-    location_ids[chat_id] = [user_location.latitude, user_location.longitude, location_radius]
-    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %f km"
-                % (user_location.latitude, user_location.longitude, location_radius))
-
-def radius(bot, update, args):
-    chat_id = update.message.chat_id
-    if len(location_ids[chat_id]) <= 0:
-        bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
-        return
-
-    user_location = location_ids[chat_id]
-    logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s' % (chat_id, user_location[0], user_location[1], user_location[2]))
-    location_ids[chat_id] = [user_location[0], user_location[1], float(args[0])]
-    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s' % (chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %f km"
-                % (location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
-
-def clearlocation(bot, update):
-    chat_id = update.message.chat_id
-    location_ids[chat_id] = None
-    bot.sendMessage(chat_id, text='Your location has been removed.')
-
 def clear(bot, update):
     chat_id = update.message.chat_id
     """Removes the job if the user changed their mind"""
@@ -186,9 +153,6 @@ def clear(bot, update):
     del language[chat_id]
     # Remove from search_ids
     del search_ids[chat_id]
-
-    # Remove from location_ids
-    del location_ids[chat_id]
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
@@ -304,8 +268,6 @@ def addJob(bot, update, job_queue):
                 search_ids[chat_id] = []
             if chat_id not in language:
                 language[chat_id] = config.get('DEFAULT_LANG', None)
-            if chat_id not in location_ids:
-                language[chat_id] = None
 
             # User dependant
             if chat_id not in sent:
@@ -324,41 +286,20 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-    if location_ids[chat_id] is not None:
-        dis = location_ids[chat_id]
-        location_I = GeoLocation.from_degrees(dis[0], dis[1])
-        distance_I = dis[2] # This is in KM
-        SW_loc, NE_loc = location_I.bounding_locations(distance_I)
-        rat = distance_I/6378.1
-
-        sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
-        for pokemon in pokemons:
-            sqlquery += str(pokemon) + ','
-        sqlquery = sqlquery[:-1]
-        sqlquery += ')'
-        sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
-        sqlquery += ' AND (latitude >= "%s" AND latitude <= "%s") AND' % (
-            SW_loc.deg_lat, NE_loc.deg_lat)
-        sqlquery += ' (longitude >= "%s" AND longitude <= "%s") AND ' % (
-            SW_loc.deg_lon, NE_loc.deg_lon)
-        sqlquery += ' acos(sin(%s) * sin(radians(latitude)) + cos(%s) * cos(radians(latitude)) * cos(radians(longitude) - (%s))) <= %s' % (
-            location_I.rad_lat, location_I.rad_lat, location_I.rad_lon, rat)
-        sqlquery += ' ORDER BY pokemon_id ASC'
-
-    else:
-        sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
-        for pokemon in pokemons:
-            sqlquery += str(pokemon) + ','
-        sqlquery = sqlquery[:-1]
-        sqlquery += ')'
-        sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
-        sqlquery += ' ORDER BY pokemon_id ASC'
+    sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
+    for pokemon in pokemons:
+        sqlquery += str(pokemon) + ','
+    sqlquery = sqlquery[:-1]
+    sqlquery += ')'
+    sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
+    sqlquery += ' ORDER BY pokemon_id ASC'
 
     try:
         lan = language[chat_id]
         mySent = sent[chat_id]
         with con:
             cur = con.cursor()
+
             cur.execute(sqlquery)
             rows = cur.fetchall()
             lock.acquire()
@@ -430,7 +371,6 @@ def report_config():
     logger.info('POGOM_PATH: <%s>' % (config.get('POGOM_PATH', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
-    logger.info('POGOM_SQL: <%s>' % (config.get('POGOM_SQL', None)))
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
@@ -459,10 +399,6 @@ def loadUserConfig(chat_id):
                         search.append(int(x))
                 # Load language
                 language[chat_id] = data['language']
-                if 'location' in data:
-                    location_ids[chat_id] = data['location']
-                else:
-                    location_ids[chat_id] = None
             return True
         else:
             logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
@@ -480,8 +416,6 @@ def saveUserConfig(chat_id):
         data['search_ids'] = search_ids[chat_id]
         # Save language
         data['language'] = language[chat_id]
-        # Save Location
-        data['location'] = location_ids[chat_id]
         with open(fileName, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
         return True
@@ -516,15 +450,8 @@ def main():
 
     #read the database
     global con
-    if config.get('POGOM_SQL','false') != 'false':
-        sql_pattern = 'mysql://(.*?):(.*?)@(.*?):(\d*)/(\S+)'
-        (user, passw, host, port, db) = re.compile(sql_pattern).findall(config.get('POGOM_SQL',''))[0]
-        logger.info('Connecting to remote database')
-        con = pymysql.connect(user=user,password=passw,host=host,port=int(port),database=db)
-    else:
-        db_path = os.path.join(config.get('POGOM_PATH', ''), 'pogom.db')
-        logger.info('Connecting to local database')
-        con = lite.connect(db_path, check_same_thread=False)
+    db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
+    con = lite.connect(db_path, check_same_thread=False)
     cur = con.cursor()
 
     #ask it to the bot father in telegram
@@ -542,14 +469,11 @@ def main():
     dp.add_handler(CommandHandler("add", add, pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("addbyrarity", addByRarity, pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("clear", clear))
-    dp.add_handler(CommandHandler("remloc", clearlocation))
     dp.add_handler(CommandHandler("rem", remove, pass_args = True, pass_job_queue=True))
     dp.add_handler(CommandHandler("save", save))
     dp.add_handler(CommandHandler("load", load, pass_job_queue=True))
     dp.add_handler(CommandHandler("list", list))
-    dp.add_handler(CommandHandler("radius", radius, pass_args = True))
     dp.add_handler(CommandHandler("lang", lang, pass_args = True))
-    dp.add_handler(MessageHandler([Filters.location],location))
 
     # log all errors
     dp.add_error_handler(error)
@@ -565,5 +489,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-

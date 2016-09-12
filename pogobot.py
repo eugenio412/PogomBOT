@@ -47,6 +47,9 @@ language = dict()
 #pokemon:
 pokemon_name = dict()
 
+#move:
+move_name = dict()
+
 #pokemon rarity
 pokemon_rarity = [[],
 	["13","16","19","41","133"],
@@ -315,14 +318,13 @@ def checkAndSend(bot, chat_id, pokemons):
                 address += " IV:%s" % (iv)
 
             if move1 and move2:
-                move1Name = str(move1)
-                move2Name = str(move2)
+                # Use language if other move languages are available.
+                move1Name = move_name["en"][move1]
+                move2Name = move_name["en"][move2]
                 address += " Moves: %s,%s" % (move1Name, move2Name)
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
-                """Function to send the alarm message"""
-                #pokemon name for those who want it
                 if not config.get('SEND_MAP_ONLY', True):
                     bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
                 bot.sendVenue(chat_id, latitude, longitude, title, address)
@@ -376,6 +378,18 @@ def read_pokemon_names(loc):
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             pokemon_name[loc] = json.loads(f.read())
+    except Exception as e:
+        logger.error('%s' % (repr(e)))
+        # Pass to ignore if some files missing.
+        pass
+
+def read_move_names(loc):
+    logger.info('Reading move names. <%s>' % loc)
+    config_path = "locales/moves." + loc + ".json"
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            move_name[loc] = json.loads(f.read())
     except Exception as e:
         logger.error('%s' % (repr(e)))
         # Pass to ignore if some files missing.
@@ -440,6 +454,8 @@ def main():
     for file in os.listdir(path_to_local):
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
+        if fnmatch.fnmatch(file, 'moves.*.json'):
+            read_move_names(file.split('.')[1])
 
     dbType = config.get('DB_TYPE', None)
     scannerName = config.get('SCANNER_NAME', None)

@@ -48,8 +48,8 @@ class DSPokemonGoMapIV():
 					individual_defense = row[7]
 					individual_stamina = row[8]
 					
-					move1 = row[9]
-					move2 = row[10]
+					move1 = str(row[9])
+					move2 = str(row[10])
 
 					iv = None
 					if individual_attack and individual_defense and individual_stamina:

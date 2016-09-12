@@ -26,6 +26,7 @@ import errno
 import json
 import threading
 import fnmatch
+import DataSources
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -46,6 +47,9 @@ language = dict()
 #pokemon:
 pokemon_name = dict()
 
+#move:
+move_name = dict()
+
 #pokemon rarity
 pokemon_rarity = [[],
 	["13","16","19","41","133"],
@@ -61,7 +65,7 @@ rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"
 
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
-def help(bot, update):
+def cmd_help(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Sending help text.' % (chat_id))
     text = "/help /start \n" + \
@@ -82,13 +86,13 @@ def help(bot, update):
     tmp = tmp[:-2]
     bot.sendMessage(chat_id, text= '/lang [%s]' % (tmp))
 
-def start(bot, update):
+def cmd_start(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Starting.' % (chat_id))
     bot.sendMessage(chat_id, text='Hello!')
-    help(bot, update)
+    cmd_help(bot, update)
 
-def add(bot, update, args, job_queue):
+def cmd_add(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
@@ -103,12 +107,12 @@ def add(bot, update, args, job_queue):
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
-        list(bot, update)
+        cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
-def addByRarity(bot, update, args, job_queue):
+def cmd_addByRarity(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
@@ -125,12 +129,12 @@ def addByRarity(bot, update, args, job_queue):
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
-        list(bot, update)
+        cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
-def clear(bot, update):
+def cmd_clear(bot, update):
     chat_id = update.message.chat_id
     """Removes the job if the user changed their mind"""
     logger.info('[%s] Clear list.' % (chat_id))
@@ -156,7 +160,7 @@ def clear(bot, update):
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
-def remove(bot, update, args, job_queue):
+def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Remove pokemon.' % (chat_id))
 
@@ -169,12 +173,12 @@ def remove(bot, update, args, job_queue):
         for x in args:
             if int(x) in search:
                 search.remove(int(x))
-        list(bot, update)
+        cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
-def list(bot, update):
+def cmd_list(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] List.' % (chat_id))
 
@@ -191,7 +195,7 @@ def list(bot, update):
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
-def save(bot, update):
+def cmd_save(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Save.' % (chat_id))
 
@@ -207,7 +211,7 @@ def save(bot, update):
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
-def load(bot, update, job_queue):
+def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Load.' % (chat_id))
 
@@ -217,14 +221,14 @@ def load(bot, update, job_queue):
         bot.sendMessage(chat_id, text='Load failed.')
     if len(search_ids[chat_id]) > 0:
         addJob(bot, update, job_queue)
-        list(bot, update)
+        cmd_list(bot, update)
     else:
         if chat_id in jobs:
             job = jobs[chat_id]
             job.schedule_removal()
             del jobs[chat_id]
 
-def lang(bot, update, args):
+def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
 
     try:
@@ -286,50 +290,44 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-    sqlquery = "SELECT * FROM pokemon WHERE pokemon_id in ("
-    for pokemon in pokemons:
-        sqlquery += str(pokemon) + ','
-    sqlquery = sqlquery[:-1]
-    sqlquery += ')'
-    sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
-    sqlquery += ' ORDER BY pokemon_id ASC'
+    allpokes = dataSource.getPokemonByIds(pokemons)
 
     try:
         lan = language[chat_id]
         mySent = sent[chat_id]
-        with con:
-            cur = con.cursor()
+        lock.acquire()
 
-            cur.execute(sqlquery)
-            rows = cur.fetchall()
-            lock.acquire()
-            for row in rows:
-                encounter_id = str(row[0])
-                spaw_point = str(row[1])
-                pok_id = str(row[2])
-                latitude = str(row[3])
-                longitude = str(row[4])
+        for pokemon in allpokes:
+            encounter_id = pokemon.getEncounterID()
+            spaw_point = pokemon.getSpawnpointID()
+            pok_id = pokemon.getPokemonID()
+            latitude = pokemon.getLatitude()
+            longitude = pokemon.getLongitude()
+            disappear_time = pokemon.getDisappearTime()
+            iv = pokemon.getIVs()
+            move1 = pokemon.getMove1()
+            move2 = pokemon.getMove2()
 
-                disappear = str(row[5])
-                disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
-                delta = disappear_time - datetime.utcnow()
-                delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
-                disappear_time = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
-                individual_attack = int(row[6])
-                individual_defense = int(row[7])
-                individual_stamina = int(row[8])
-                iv = str((individual_attack +  individual_defense + individual_stamina) / 45 * 100)
-                iv = iv[0:4]
-                title =  pokemon_name[lan][pok_id]
-                address = "Disappear at %s (%s).IV:%s" % (disappear_time, delta,iv)
+            delta = disappear_time - datetime.utcnow()
+            delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
 
-                if encounter_id not in mySent:
-                    mySent[encounter_id] = (encounter_id,spaw_point,pok_id,latitude,longitude,disappear)
-                    """Function to send the alarm message"""
-                    #pokemon name for those who want it
-                    if not config.get('SEND_MAP_ONLY', True):
-                        bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
-                    bot.sendVenue(chat_id, latitude, longitude, title, address)
+            title =  pokemon_name[lan][pok_id]
+            address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
+
+            if iv:
+                title += " IV:%s" % (iv)
+
+            if move1 and move2:
+                # Use language if other move languages are available.
+                move1Name = move_name["en"][move1]
+                move2Name = move_name["en"][move2]
+                address += " Moves: %s,%s" % (move1Name, move2Name)
+
+            if encounter_id not in mySent:
+                mySent[encounter_id] = disappear_time
+                if not config.get('SEND_MAP_ONLY', True):
+                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                bot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
@@ -342,8 +340,7 @@ def checkAndSend(bot, chat_id, pokemons):
         lock.acquire()
         toDel = []
         for encounter_id in mySent:
-            time = mySent[encounter_id][5]
-            time = datetime.strptime(time[0:19], "%Y-%m-%d %H:%M:%S")
+            time = mySent[encounter_id]
             if time < current_time:
                 toDel.append(encounter_id)
         for encounter_id in toDel:
@@ -368,17 +365,31 @@ def read_config():
 
 def report_config():
     logger.info('TELEGRAM_TOKEN: <%s>' % (config.get('TELEGRAM_TOKEN', None)))
-    logger.info('POGOM_PATH: <%s>' % (config.get('POGOM_PATH', None)))
+    logger.info('SCANNER_NAME: <%s>' % (config.get('SCANNER_NAME', None)))
+    logger.info('DB_TYPE: <%s>' % (config.get('DB_TYPE', None)))
+    logger.info('DB_CONNECT: <%s>' % (config.get('DB_CONNECT', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
-    config_path = os.path.dirname(os.path.realpath(__file__))+"/locales/pokemon." + loc + ".json"
+    config_path = "locales/pokemon." + loc + ".json"
 
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             pokemon_name[loc] = json.loads(f.read())
+    except Exception as e:
+        logger.error('%s' % (repr(e)))
+        # Pass to ignore if some files missing.
+        pass
+
+def read_move_names(loc):
+    logger.info('Reading move names. <%s>' % loc)
+    config_path = "locales/moves." + loc + ".json"
+
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            move_name[loc] = json.loads(f.read())
     except Exception as e:
         logger.error('%s' % (repr(e)))
         # Pass to ignore if some files missing.
@@ -439,20 +450,33 @@ def main():
     read_config()
 
     # Read lang files
-    path_to_local = "/locales/"
-    real_path_to_local = os.path.dirname(os.path.realpath(__file__))+path_to_local
-
-    print (real_path_to_local)
-
-    for file in os.listdir(real_path_to_local):
+    path_to_local = "locales/"
+    for file in os.listdir(path_to_local):
         if fnmatch.fnmatch(file, 'pokemon.*.json'):
             read_pokemon_names(file.split('.')[1])
+        if fnmatch.fnmatch(file, 'moves.*.json'):
+            read_move_names(file.split('.')[1])
 
-    #read the database
-    global con
-    db_path = os.path.join(config.get('POGOM_PATH', None), 'pogom.db')
-    con = lite.connect(db_path, check_same_thread=False)
-    cur = con.cursor()
+    dbType = config.get('DB_TYPE', None)
+    scannerName = config.get('SCANNER_NAME', None)
+    global dataSource
+    dataSource = None
+    if dbType == 'sqlite':
+        if scannerName == 'pogom':
+            dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
+        elif scannerName == 'pokemongo-map':
+            dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
+        elif scannerName == 'pokemongo-map-iv':
+            dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
+    elif dbType == 'mysql':
+        if scannerName == 'pogom':
+            dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
+        elif scannerName == 'pokemongo-map':
+            dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
+        elif scannerName == 'pokemongo-map-iv':
+            dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
+    if not dataSource:
+        raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)
@@ -464,16 +488,16 @@ def main():
     dp = updater.dispatcher
 
     # on different commands - answer in Telegram
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help))
-    dp.add_handler(CommandHandler("add", add, pass_args = True, pass_job_queue=True))
-    dp.add_handler(CommandHandler("addbyrarity", addByRarity, pass_args = True, pass_job_queue=True))
-    dp.add_handler(CommandHandler("clear", clear))
-    dp.add_handler(CommandHandler("rem", remove, pass_args = True, pass_job_queue=True))
-    dp.add_handler(CommandHandler("save", save))
-    dp.add_handler(CommandHandler("load", load, pass_job_queue=True))
-    dp.add_handler(CommandHandler("list", list))
-    dp.add_handler(CommandHandler("lang", lang, pass_args = True))
+    dp.add_handler(CommandHandler("start", cmd_start))
+    dp.add_handler(CommandHandler("help", cmd_help))
+    dp.add_handler(CommandHandler("add", cmd_add, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("addbyrarity", cmd_addByRarity, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("clear", cmd_clear))
+    dp.add_handler(CommandHandler("rem", cmd_remove, pass_args = True, pass_job_queue=True))
+    dp.add_handler(CommandHandler("save", cmd_save))
+    dp.add_handler(CommandHandler("load", cmd_load, pass_job_queue=True))
+    dp.add_handler(CommandHandler("list", cmd_list))
+    dp.add_handler(CommandHandler("lang", cmd_lang, pass_args = True))
 
     # log all errors
     dp.add_error_handler(error)

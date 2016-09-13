@@ -16,7 +16,7 @@ if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3.")
 
 import sqlite3 as lite
-from telegram.ext import Updater, CommandHandler, Job
+from telegram.ext import Updater, CommandHandler, Job, MessageHandler, Filters
 from telegram import Bot
 import logging
 from datetime import datetime, timezone
@@ -43,6 +43,8 @@ locks = dict()
 # User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
 search_ids = dict()
 language = dict()
+location_ids = dict()
+location_radius = 3.0
 
 #pokemon:
 pokemon_name = dict()
@@ -71,10 +73,13 @@ def cmd_help(bot, update):
     text = "/help /start \n" + \
     "/add <#pokedexID> \n" + \
     "/add <#pokedexID1> <#pokedexID2> ... \n" + \
-    "/addbyrarity <#rarity> with 1 uncommon to 5 ultrarare \n" + \
+    "/addbyrarity <#rarity> - With 1 uncommon to 5 ultrarare \n" + \
     "/clear \n" + \
     "/rem <#pokedexID> \n" + \
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
+    "Send <location> - Search a location \n" +\
+    "/radius <m> - Search radius in m \n" +\
+    "/remloc - Clear location data\n" +\
     "/list \n" + \
     "/save \n" + \
     "/load \n" + \
@@ -157,6 +162,8 @@ def cmd_clear(bot, update):
     del language[chat_id]
     # Remove from search_ids
     del search_ids[chat_id]
+    # Remove from location_ids
+    del location_ids[chat_id]
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
@@ -219,14 +226,16 @@ def cmd_load(bot, update, job_queue):
         bot.sendMessage(chat_id, text='Load successful.')
     else:
         bot.sendMessage(chat_id, text='Load failed.')
-    if len(search_ids[chat_id]) > 0:
-        addJob(bot, update, job_queue)
-        cmd_list(bot, update)
-    else:
-        if chat_id in jobs:
-            job = jobs[chat_id]
-            job.schedule_removal()
-            del jobs[chat_id]
+    # We might be the first user and above failed....
+    if len(search_ids) > 0:
+        if len(search_ids[chat_id]) > 0:
+            addJob(bot, update, job_queue)
+            cmd_list(bot, update)
+        else:
+            if chat_id in jobs:
+                job = jobs[chat_id]
+                job.schedule_removal()
+                del jobs[chat_id]
 
 def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -247,6 +256,63 @@ def cmd_lang(bot, update, args):
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /lang <#language>')
+
+def cmd_location(bot, update):
+    chat_id = update.message.chat_id
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    user_location = update.message.location
+
+    # We set the location from the users sent location.
+    location_ids[chat_id] = [user_location.latitude, user_location.longitude, location_radius]
+
+    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (
+    chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+
+    # Send confirmation nessage
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
+                                      % (user_location.latitude, user_location.longitude, location_radius*1000))
+
+def cmd_radius(bot, update, args):
+
+    chat_id = update.message.chat_id
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    # Check if user has set a location
+    if location_ids[chat_id][0] is None:
+        bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
+        return
+
+    # Get the users location
+    user_location = location_ids[chat_id]
+    logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s' % (
+    chat_id, user_location[0], user_location[1], user_location[2]))
+
+    if len(args) < 1:
+        bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
+                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
+
+    # Change the radius
+    location_ids[chat_id] = [user_location[0], user_location[1], float(args[0])/1000]
+
+    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s' % (
+        chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+
+    # Send confirmation
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
+                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
+
+def cmd_clearlocation(bot, update):
+    chat_id = update.message.chat_id
+    location_ids[chat_id] = [None, None, None]
+    bot.sendMessage(chat_id, text='Your location has been removed.')
+
 
 ## Functions
 def error(bot, update, error):
@@ -272,6 +338,8 @@ def addJob(bot, update, job_queue):
                 search_ids[chat_id] = []
             if chat_id not in language:
                 language[chat_id] = config.get('DEFAULT_LANG', None)
+            if chat_id not in location_ids:
+                location_ids[chat_id] = [None, None, None]
 
             # User dependant
             if chat_id not in sent:
@@ -290,14 +358,28 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-    allpokes = dataSource.getPokemonByIds(pokemons)
 
     try:
+        allpokes = dataSource.getPokemonByIds(pokemons)
         lan = language[chat_id]
         mySent = sent[chat_id]
         lock.acquire()
 
+        # Do location processing outside of the loop. (save those cycles!)
+        if location_ids[chat_id][0] is not None:
+            location_data = location_ids[chat_id]
+            # Create Geolocation object from location
+            location_I = DataSources.GeoLocation.from_degrees(location_data[0], location_data[1])
+            # Search radius
+            distance_I = location_data[2]  # This is in KM
+            SW_loc, NE_loc = location_I.bounding_locations(distance_I)
+
         for pokemon in allpokes:
+
+            if location_ids[chat_id][0] is not None:
+                if not pokemon.filterbylocation(SW_loc,NE_loc,location_I,distance_I):
+                    continue
+
             encounter_id = pokemon.getEncounterID()
             spaw_point = pokemon.getSpawnpointID()
             pok_id = pokemon.getPokemonID()
@@ -410,6 +492,12 @@ def loadUserConfig(chat_id):
                         search.append(int(x))
                 # Load language
                 language[chat_id] = data['language']
+
+                # Load saved location data. This should be OK for upgrades.
+                if 'location' not in data:
+                    location_ids[chat_id] = [None, None, None]
+                else:
+                    location_ids[chat_id] = data['location']
             return True
         else:
             logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
@@ -427,6 +515,8 @@ def saveUserConfig(chat_id):
         data['search_ids'] = search_ids[chat_id]
         # Save language
         data['language'] = language[chat_id]
+        # Save Location
+        data['location'] = location_ids[chat_id]
         with open(fileName, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
         return True
@@ -498,6 +588,9 @@ def main():
     dp.add_handler(CommandHandler("load", cmd_load, pass_job_queue=True))
     dp.add_handler(CommandHandler("list", cmd_list))
     dp.add_handler(CommandHandler("lang", cmd_lang, pass_args = True))
+    dp.add_handler(CommandHandler("radius", cmd_radius, pass_args=True))
+    dp.add_handler(CommandHandler("remloc", cmd_clearlocation))
+    dp.add_handler(MessageHandler([Filters.location],cmd_location))
 
     # log all errors
     dp.add_error_handler(error)

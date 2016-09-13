@@ -44,7 +44,7 @@ locks = dict()
 search_ids = dict()
 language = dict()
 location_ids = dict()
-location_radius = 3.0
+location_radius = 0.6
 
 #pokemon:
 pokemon_name = dict()

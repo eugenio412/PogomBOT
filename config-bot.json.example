@@ -4,5 +4,7 @@
 	"DB_TYPE": "sqlite",
 	"DB_CONNECT": "/PATH/TO/POGOM",
 	"DEFAULT_LANG": "en",
-	"SEND_MAP_ONLY": true
+	"SEND_MAP_ONLY": true,
+	"POKEMON_MINIMUM_IV": 80,
+	"SEND_POKEMON_WITHOUT_IV": true
 }

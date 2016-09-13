@@ -21,12 +21,13 @@ class DSPogomMysql():
 		pokelist = []
 
 		sqlquery = ("SELECT encounter_id, spawnpoint_id, pokemon_id, latitude, longitude, disappear_time "
-			"FROM pokemon WHERE pokemon_id in (")
+			"FROM pokemon WHERE")
+		sqlquery += ' disappear_time > "' + str(datetime.utcnow()) + '"'
+		sqlquery += ' AND pokemon_id in ('
 		for pokemon in ids:
 			sqlquery += str(pokemon) + ','
 		sqlquery = sqlquery[:-1]
 		sqlquery += ')'
-		sqlquery += ' AND disappear_time > "' + str(datetime.utcnow()) + '"'
 		sqlquery += ' ORDER BY pokemon_id ASC'
 
 		with self.con:

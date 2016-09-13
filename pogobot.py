@@ -395,10 +395,10 @@ def checkAndSend(bot, chat_id, pokemons):
             title =  pokemon_name[lan][pok_id]
             address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
 
-            if iv:
+            if iv is not None:
                 title += " IV:%s" % (iv)
 
-            if move1 and move2:
+            if move1 is not None and move2 is not None:
                 # Use language if other move languages are available.
                 move1Name = move_name["en"][move1]
                 move2Name = move_name["en"][move2]
@@ -409,7 +409,7 @@ def checkAndSend(bot, chat_id, pokemons):
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
-                if (not iv and sendPokeWithoutIV) or (iv and iv >= pokeMinIV) or not ivAvailable:
+                if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and iv >= pokeMinIV):
                     if not config.get('SEND_MAP_ONLY', True):
                         bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)

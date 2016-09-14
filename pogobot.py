@@ -391,9 +391,10 @@ def checkAndSend(bot, chat_id, pokemons):
 
             delta = disappear_time - datetime.utcnow()
             delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+            disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
 
             title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
+            address = "Disappear at %s (%s)." % (disappear_time_str, delta)
 
             if iv is not None:
                 title += " IV:%s" % (iv)

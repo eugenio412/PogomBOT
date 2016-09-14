@@ -7,6 +7,12 @@ Made using [pogom](https://github.com/favll/pogom) and [python-telegram-bot](htt
 
 BUT NOW (drumroll) SUPPORT [PokemonGo-Map](https://github.com/PokemonGoMap/PokemonGo-Map)
 
+## Branches
+
+**master** branch got all changes that have already been tested by the devs.
+
+**develop** branch got all new features but could be instable sometimes.
+
 ## Installation Instructions
 
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki).

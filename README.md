@@ -17,13 +17,9 @@ BUT NOW (drumroll) SUPPORT [PokemonGo-Map](https://github.com/PokemonGoMap/Pokem
 
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki).
 
-## Update Instructions (PogomBOT CHANGED, BE CAREFUL)
-
-See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/update-guide).
-
 ## New IV feature
 
-Now our bot can send you the notification with the Iv number, but only with PokemonGO-Map, follow the guide for the beat branch at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/IV-notification-guide).
+Now our bot can send you the notification with the IV number, but only with PokemonGO-Map using the develop [branch](https://github.com/PokemonGoMap/PokemonGo-Map).
 
 ## Full List of Commands
 

@@ -405,11 +405,11 @@ def checkAndSend(bot, chat_id, pokemons):
                 address += " Moves: %s,%s" % (move1Name, move2Name)
 
             sendPokeWithoutIV = config.get('SEND_POKEMON_WITHOUT_IV', True)
-            pokeMinIV = int(config.get('POKEMON_MINIMUM_IV', 0))
+            pokeMinIV = float(config.get('POKEMON_MINIMUM_IV', 0))
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
-                if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and iv >= pokeMinIV):
+                if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and float(iv) >= pokeMinIV):
                     if not config.get('SEND_MAP_ONLY', True):
                         bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)

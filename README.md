@@ -35,3 +35,7 @@ See it at our [troubleshooting page](https://github.com/eugenio412/PogomBOT/wiki
 IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators write to our telegram group: http://telegram.me/pogomBOTgroup
 
 ![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.jpg)
+
+## Changelog
+
+14 sept 2016: added POKEMON_MINIMUM_IV feature

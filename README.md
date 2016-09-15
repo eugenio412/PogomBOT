@@ -14,7 +14,7 @@ BUT NOW (drumroll) SUPPORT [PokemonGo-Map](https://github.com/PokemonGoMap/Pokem
 0. **master** branch
   - Stable branch
   - Tested features
-0. **develop**
+0. **develop** branch
   - Could be instable sometimes.
   - Newest features
 0. Switching branches

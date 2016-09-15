@@ -22,18 +22,14 @@ BUT NOW (drumroll) SUPPORT [PokemonGo-Map](https://github.com/PokemonGoMap/Pokem
   - switch to master: `git checkout master`
   - switch to develop: `git checkout develop`
   - update current branch: `git pull`
-  
+
 ## Installation Instructions
 
 See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki).
 
-## Update Instructions (PogomBOT CHANGED, BE CAREFUL)
-
-See it at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/update-guide).
-
 ## New IV feature
 
-Now our bot can send you the notification with the Iv number, but only with PokemonGO-Map, follow the guide for the beat branch at our [wiki](https://github.com/eugenio412/PogomBOT/wiki/IV-notification-guide).
+Now our bot can send you the notification with the IV number, but only with PokemonGO-Map using the develop [branch](https://github.com/PokemonGoMap/PokemonGo-Map).
 
 ## Full List of Commands
 
@@ -49,3 +45,7 @@ See it at our [troubleshooting page](https://github.com/eugenio412/PogomBOT/wiki
 IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators write to our telegram group: http://telegram.me/pogomBOTgroup
 
 ![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.jpg)
+
+## Changelog
+
+14 sept 2016: added POKEMON_MINIMUM_IV feature

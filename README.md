@@ -48,4 +48,8 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 
 ## Changelog
 
+16 sept 2016: added imported locales from pokemongo-map
+
+16 sept 2016: added script to convert pokemongo-map locales
+
 14 sept 2016: added POKEMON_MINIMUM_IV feature

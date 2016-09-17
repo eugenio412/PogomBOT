@@ -358,7 +358,6 @@ def checkAndSend(bot, chat_id, pokemons):
     if len(pokemons) == 0:
         return
 
-
     try:
         allpokes = dataSource.getPokemonByIds(pokemons)
         lan = language[chat_id]
@@ -392,24 +391,29 @@ def checkAndSend(bot, chat_id, pokemons):
 
             delta = disappear_time - datetime.utcnow()
             delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+            disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
 
             title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %s (%s)." % (disappear_time.strftime("%H:%M:%S"), delta)
+            address = "Disappear at %s (%s)." % (disappear_time_str, delta)
 
-            if iv:
+            if iv is not None:
                 title += " IV:%s" % (iv)
 
-            if move1 and move2:
+            if move1 is not None and move2 is not None:
                 # Use language if other move languages are available.
                 move1Name = move_name["en"][move1]
                 move2Name = move_name["en"][move2]
                 address += " Moves: %s,%s" % (move1Name, move2Name)
 
+            sendPokeWithoutIV = config.get('SEND_POKEMON_WITHOUT_IV', True)
+            pokeMinIV = float(config.get('POKEMON_MINIMUM_IV', 0))
+
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
-                if not config.get('SEND_MAP_ONLY', True):
-                    bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
-                bot.sendVenue(chat_id, latitude, longitude, title, address)
+                if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and float(iv) >= pokeMinIV):
+                    if not config.get('SEND_MAP_ONLY', True):
+                        bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                    bot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
@@ -452,6 +456,8 @@ def report_config():
     logger.info('DB_CONNECT: <%s>' % (config.get('DB_CONNECT', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
+    logger.info('POKEMON_MINIMUM_IV: <%s>' % (config.get('POKEMON_MINIMUM_IV', None)))
+    logger.info('SEND_POKEMON_WITHOUT_IV: <%s>' % (config.get('SEND_POKEMON_WITHOUT_IV', None)))
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)
@@ -551,6 +557,8 @@ def main():
     scannerName = config.get('SCANNER_NAME', None)
     global dataSource
     dataSource = None
+    global ivAvailable
+    ivAvailable = False
     if dbType == 'sqlite':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
@@ -558,6 +566,7 @@ def main():
             dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
             dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
+            ivAvailable = True
     elif dbType == 'mysql':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
@@ -565,6 +574,7 @@ def main():
             dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
             dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
+            ivAvailable = True
     if not dataSource:
         raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 

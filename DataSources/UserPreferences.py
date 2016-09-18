@@ -24,7 +24,7 @@ class UserPreferences(object):
         self.__set_directory(directory=self.__getDefaulteDir())
         self.__set_filename(filename=self.__getDefaultFilename(chat_id))
         # load existing or create file
-        self.__load_or_create()
+        self.__load_or_create(False)
 
 
     def __defaultDict(self):
@@ -33,7 +33,7 @@ class UserPreferences(object):
             language = 'en',
             search_ids = None,
             locks = None,
-            sent = None,
+            sent = dict(),
             jobs = None
         )
         return  preferences
@@ -79,26 +79,38 @@ A valid filename must not contain especial characters or operating system separa
             logging.warning("'.json' appended to given filename '%s'" % filename)
         self.__filename = filename
 
-    def __load_or_create(self):
-        fullpath = self.fullpath
-        if os.path.isfile(fullpath):
-            logger.info('[%s] loadUserConfig.' % (self.chat_id))
-            try:
-                if os.path.isfile(fullpath):
-                    with open(fullpath, 'r', encoding='utf-8') as f:
-                        preferences = json.load(f)
-                else:
-                    logger.warn('[%s] loadUserConfig. File not found!' % (self.chat_id))
+    def __load_or_create(self,sw):
+        if sw:
+            fullpath = self.fullpath
+            if os.path.isfile(fullpath):
+                logger.info('[%s] loadUserConfig.' % (self.chat_id))
+                try:
+                    if os.path.isfile(fullpath):
+                        with open(fullpath, 'r', encoding='utf-8') as f:
+                            preferences = json.load(f)
+                    else:
+                        logger.warn('[%s] loadUserConfig. File not found!' % (self.chat_id))
+                        preferences = self.__defaultDict()
+                        pass
+                except Exception as e:
+                    logger.error('[%s] %s' % (self.chat_id, e))
                     preferences = self.__defaultDict()
-                    pass
-            except Exception as e:
-                logger.error('[%s] %s' % (self.chat_id, e))
-            self.__preferences = preferences
+                self.__preferences = preferences
+            else:
+                self.__preferences = self.__defaultDict()
+                self.__dump_file()
         else:
             self.__preferences = self.__defaultDict()
-            self.__dump_file(self.__preferences)
+            self.__dump_file()
 
-    def __dump_file(self,  preferences, temp=False):
+    def __dump_file(self, temp = False):
+
+        # Clear out program data.......
+        pref_loc = self.__preferences
+        del pref_loc['locks']
+        del pref_loc['sent']
+        del pref_loc['jobs']
+
         if temp:
             try:
                 fd = tempfile.NamedTemporaryFile(dir=tempfile._get_default_tempdir(), delete=True)
@@ -112,7 +124,7 @@ A valid filename must not contain especial characters or operating system separa
                 raise Exception("Unable to open preferences file '%s." % self.fullpath)
         try:
             with fd:
-                json.dump(self.__preferences, fd, indent=4, sort_keys=True, separators=(',', ':'))
+                json.dump(pref_loc, fd, indent=4, sort_keys=True, separators=(',', ':'))
         except Exception as e:
             raise Exception("Unable to write preferences to file '%s."%self.fullpath)
         # close file
@@ -177,6 +189,23 @@ A valid filename must not contain especial characters or operating system separa
         """
         return True, ""
 
+    def reset_user(self):
+        pref_loc = self.__defaultDict()
+        self.update_preferences(pref_loc)
+
+
+    def set(self,key,value):
+        pref_loc = self.preferences
+        if key in pref_loc:
+            pref_loc[key] = value
+        else:
+            logger.error('Can not set preference key %s for user %s' % (key, self.user_id))
+        self.update_preferences(pref_loc)
+
+    def load(self):
+
+        self.__load_or_create(True)
+
     def set_preferences(self, preferences):
         """
         Set preferences and update preferences file.
@@ -188,18 +217,17 @@ A valid filename must not contain especial characters or operating system separa
         assert flag, m
         assert isinstance(preferences, dict), "preferences must be a dictionary"
         # try dumping to temp file first
+        self.__preferences = preferences
         try:
-            self.__dump_file(preferences, temp=True)
+            self.__dump_file(temp=True)
         except Exception as e:
-            raise Exception("Unable to dump temporary preferences file (%s)" % e)
+            logger.error("Unable to dump temporary preferences file (%s)" % e)
         # dump to file
         try:
-            self.__dump_file(preferences, temp=False)
+            self.__dump_file(temp=False)
         except Exception as e:
-            raise Exception(
-                "Unable to dump preferences file (%s). Preferences file can be corrupt, but in memory stored preferences are still available using and accessible using preferences property." % e)
+            logger.error("Unable to dump preferences file (%s). Preferences file can be corrupt, but in memory stored preferences are still available using and accessible using preferences property." % e)
         # set preferences
-        self.__preferences = preferences
 
     def update_preferences(self, preferences):
         """

@@ -34,21 +34,22 @@ logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - 
 
 logger = logging.getLogger(__name__)
 
-jobs = dict()
+pref = dict()
+
+#jobs = dict()
 
 # User dependant - dont add
-sent = dict()
-locks = dict()
+#sent = dict()
+#locks = dict()
 
 # User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
-search_ids = dict()
-language = dict()
-location_ids = dict()
+#search_ids = dict()
+#language = dict()
+#location_ids = dict()
 location_radius = 0.6
 
 #pokemon:
 pokemon_name = dict()
-
 #move:
 move_name = dict()
 
@@ -96,6 +97,7 @@ def cmd_start(bot, update):
     logger.info('[%s] Starting.' % (chat_id))
     bot.sendMessage(chat_id, text='Hello!')
     cmd_help(bot, update)
+    pref[chat_id] = DataSources.UserPreferences(chat_id)
 
 def cmd_add(bot, update, args, job_queue):
     chat_id = update.message.chat_id
@@ -107,11 +109,12 @@ def cmd_add(bot, update, args, job_queue):
     logger.info('[%s] Add pokemon.' % (chat_id))
 
     try:
-        search = search_ids[chat_id]
+        search = pref[chat_id].get('search_ids')
         for x in args:
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
+        pref[chat_id].set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -129,11 +132,12 @@ def cmd_addByRarity(bot, update, args, job_queue):
     try:
         rarity = int(args[0])
 
-        search = search_ids[chat_id]
+        search = pref[chat_id].get('search_ids')
         for x in pokemon_rarity[rarity]:
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
+        pref[chat_id].set('search_ids', search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -144,26 +148,14 @@ def cmd_clear(bot, update):
     """Removes the job if the user changed their mind"""
     logger.info('[%s] Clear list.' % (chat_id))
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     # Remove from jobs
-    job = jobs[chat_id]
+    job = pref[chat_id].get('jobs')
     job.schedule_removal()
-    del jobs[chat_id]
-
-    # Remove from sent
-    del sent[chat_id]
-    # Remove from locks
-    del locks[chat_id]
-
-    # Remove from language
-    del language[chat_id]
-    # Remove from search_ids
-    del search_ids[chat_id]
-    # Remove from location_ids
-    del location_ids[chat_id]
+    pref[chat_id].reset_user()
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
@@ -171,15 +163,16 @@ def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Remove pokemon.' % (chat_id))
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     try:
-        search = search_ids[chat_id]
+        search = pref[chat_id].get('search_ids')
         for x in args:
             if int(x) in search:
                 search.remove(int(x))
+        pref[chat_id].set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -189,14 +182,14 @@ def cmd_list(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] List.' % (chat_id))
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     try:
-        lan = language[chat_id]
+        lan = pref[chat_id].get('language')
         tmp = 'List of notifications:\n'
-        for x in search_ids[chat_id]:
+        for x in pref[chat_id].get('search_ids'):
             tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
         bot.sendMessage(chat_id, text = tmp)
     except Exception as e:
@@ -206,36 +199,28 @@ def cmd_save(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Save.' % (chat_id))
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
-    try:
-        if saveUserConfig(chat_id):
-            bot.sendMessage(chat_id, text='Save successful.')
-        else:
-            bot.sendMessage(chat_id, text='Save failed.')
-    except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+    pref[chat_id].set_preferences(pref[chat_id].preferences)
+
 
 def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Load.' % (chat_id))
+    pref[chat_id].load()
+    bot.sendMessage(chat_id, text='Load successful.')
 
-    if loadUserConfig(chat_id):
-        bot.sendMessage(chat_id, text='Load successful.')
-    else:
-        bot.sendMessage(chat_id, text='Load failed.')
     # We might be the first user and above failed....
-    if len(search_ids) > 0:
-        if len(search_ids[chat_id]) > 0:
-            addJob(bot, update, job_queue)
-            cmd_list(bot, update)
-        else:
-            if chat_id in jobs:
-                job = jobs[chat_id]
-                job.schedule_removal()
-                del jobs[chat_id]
+    if len(pref[chat_id].get('search_ids')) > 0:
+        addJob(bot, update, job_queue)
+        cmd_list(bot, update)
+    else:
+        if pref[chat_id].get('jobs') is not None:
+            job = pref[chat_id].get('jobs')
+            job.schedule_removal()
+            pref[chat_id].set('jobs', None)
 
 def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -245,7 +230,7 @@ def cmd_lang(bot, update, args):
         logger.info('[%s] Setting lang.' % (chat_id))
 
         if lan in pokemon_name:
-            language[chat_id] = args[0]
+            pref[chat_id].set('language',args[0])
             bot.sendMessage(chat_id, text='Language set to [%s].' % (lan))
         else:
             tmp = ''
@@ -260,17 +245,17 @@ def cmd_lang(bot, update, args):
 def cmd_location(bot, update):
     chat_id = update.message.chat_id
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     user_location = update.message.location
 
     # We set the location from the users sent location.
-    location_ids[chat_id] = [user_location.latitude, user_location.longitude, location_radius]
+    pref[chat_id].set('location', [user_location.latitude, user_location.longitude, location_radius])
 
     logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (
-    chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+    chat_id, user_location.latitude, user_location.longitude, location_radius))
 
     # Send confirmation nessage
     bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
@@ -280,37 +265,37 @@ def cmd_radius(bot, update, args):
 
     chat_id = update.message.chat_id
 
-    if chat_id not in jobs:
+    if pref[chat_id].get('jobs') is None:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     # Check if user has set a location
-    if location_ids[chat_id][0] is None:
+    user_location = pref[chat_id].get('location')
+    if user_location[0] is None:
         bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
         return
 
     # Get the users location
-    user_location = location_ids[chat_id]
     logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s' % (
     chat_id, user_location[0], user_location[1], user_location[2]))
 
     if len(args) < 1:
         bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
-                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
+                                      % (user_location[0], user_location[1], user_location[2]))
 
     # Change the radius
-    location_ids[chat_id] = [user_location[0], user_location[1], float(args[0])/1000]
+    pref[chat_id].set('location', [user_location[0], user_location[1], float(args[0])/1000])
 
     logger.info('[%s] Set Location as Lat %s, Lon %s, R %s' % (
-        chat_id, location_ids[chat_id][0], location_ids[chat_id][1], location_ids[chat_id][2]))
+        chat_id, user_location[0], user_location[1], float(args[0])/1000))
 
     # Send confirmation
     bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
-                                      % (location_ids[chat_id][0], location_ids[chat_id][1], 1000*location_ids[chat_id][2]))
+                                      % (user_location[0], user_location[1], float(args[0])/1000))
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
-    location_ids[chat_id] = [None, None, None]
+    pref[chat_id].set('location', [None, None, None])
     bot.sendMessage(chat_id, text='Your location has been removed.')
 
 
@@ -321,52 +306,43 @@ def error(bot, update, error):
 def alarm(bot, job):
     chat_id = job.context[0]
     logger.info('[%s] Checking alarm.' % (chat_id))
-    checkAndSend(bot, chat_id, search_ids[chat_id])
+    checkAndSend(bot, chat_id, pref[chat_id].get('search_ids'))
 
 def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Adding job.' % (chat_id))
 
     try:
-        if chat_id not in jobs:
+        if pref[chat_id].get('jobs') is None:
             job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
             # Add to jobs
-            jobs[chat_id] = job
+            jobs = pref[chat_id].get('jobs')
             job_queue.put(job)
-            # User dependant - Save/Load
-            if chat_id not in search_ids:
-                search_ids[chat_id] = []
-            if chat_id not in language:
-                language[chat_id] = config.get('DEFAULT_LANG', None)
-            if chat_id not in location_ids:
-                location_ids[chat_id] = [None, None, None]
 
             # User dependant
-            if chat_id not in sent:
-                sent[chat_id] = dict()
-            if chat_id not in locks:
-                locks[chat_id] = threading.Lock()
-
+            pref[chat_id].set('locks',threading.Lock())
+            if pref[chat_id].set('locks') is None:
+                pref[chat_id].set('locks', threading.Lock())
             text = "Scanner started."
             bot.sendMessage(chat_id, text)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
-    lock = locks[chat_id]
+    lock = pref[chat_id].get('locks')
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
     if len(pokemons) == 0:
         return
 
     try:
         allpokes = dataSource.getPokemonByIds(pokemons)
-        lan = language[chat_id]
-        mySent = sent[chat_id]
+        lan = pref[chat_id].get('language')
+        mySent = pref[chat_id].get('sent')
+        location_data = pref[chat_id].get('location')
         lock.acquire()
 
         # Do location processing outside of the loop. (save those cycles!)
-        if location_ids[chat_id][0] is not None:
-            location_data = location_ids[chat_id]
+        if location_data[0] is not None:
             # Create Geolocation object from location
             location_I = DataSources.GeoLocation.from_degrees(location_data[0], location_data[1])
             # Search radius
@@ -374,8 +350,7 @@ def checkAndSend(bot, chat_id, pokemons):
             SW_loc, NE_loc = location_I.bounding_locations(distance_I)
 
         for pokemon in allpokes:
-
-            if location_ids[chat_id][0] is not None:
+            if location_data[0] is not None:
                 if not pokemon.filterbylocation(SW_loc,NE_loc,location_I,distance_I):
                     continue
 
@@ -433,6 +408,7 @@ def checkAndSend(bot, chat_id, pokemons):
             del mySent[encounter_id]
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
+    pref[chat_id].set('sent', mySent)
     lock.release()
 
 def read_config():
@@ -483,52 +459,52 @@ def read_move_names(loc):
         # Pass to ignore if some files missing.
         pass
 
-def loadUserConfig(chat_id):
-    logger.info('[%s] loadUserConfig.' % (chat_id))
-    fileName = getUserConfigPath(chat_id)
-    try:
-        if os.path.isfile(fileName):
-            with open(fileName, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                # Load search ids
-                search = []
-                search_ids[chat_id] = search
-                for x in data['search_ids']:
-                    if not int(x) in search:
-                        search.append(int(x))
-                # Load language
-                language[chat_id] = data['language']
-
-                # Load saved location data. This should be OK for upgrades.
-                if 'location' not in data:
-                    location_ids[chat_id] = [None, None, None]
-                else:
-                    location_ids[chat_id] = data['location']
-            return True
-        else:
-            logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
-            pass
-    except Exception as e:
-        logger.error('[%s] %s' % (chat_id, e))
-    return False
-
-def saveUserConfig(chat_id):
-    logger.info('[%s] saveUserConfig.' % (chat_id))
-    fileName = getUserConfigPath(chat_id)
-    try:
-        data = dict()
-        # Save search ids
-        data['search_ids'] = search_ids[chat_id]
-        # Save language
-        data['language'] = language[chat_id]
-        # Save Location
-        data['location'] = location_ids[chat_id]
-        with open(fileName, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
-        return True
-    except Exception as e:
-        logger.error('[%s] %s' % (chat_id, e))
-    return False
+# def loadUserConfig(chat_id):
+#     logger.info('[%s] loadUserConfig.' % (chat_id))
+#     fileName = getUserConfigPath(chat_id)
+#     try:
+#         if os.path.isfile(fileName):
+#             with open(fileName, 'r', encoding='utf-8') as f:
+#                 data = json.load(f)
+#                 # Load search ids
+#                 search = []
+#                 search_ids[chat_id] = search
+#                 for x in data['search_ids']:
+#                     if not int(x) in search:
+#                         search.append(int(x))
+#                 # Load language
+#                 language[chat_id] = data['language']
+#
+#                 # Load saved location data. This should be OK for upgrades.
+#                 if 'location' not in data:
+#                     location_ids[chat_id] = [None, None, None]
+#                 else:
+#                     location_ids[chat_id] = data['location']
+#             return True
+#         else:
+#             logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
+#             pass
+#     except Exception as e:
+#         logger.error('[%s] %s' % (chat_id, e))
+#     return False
+#
+# def saveUserConfig(chat_id):
+#     logger.info('[%s] saveUserConfig.' % (chat_id))
+#     fileName = getUserConfigPath(chat_id)
+#     try:
+#         data = dict()
+#         # Save search ids
+#         data['search_ids'] = search_ids[chat_id]
+#         # Save language
+#         data['language'] = language[chat_id]
+#         # Save Location
+#         data['location'] = location_ids[chat_id]
+#         with open(fileName, 'w', encoding='utf-8') as f:
+#             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
+#         return True
+#     except Exception as e:
+#         logger.error('[%s] %s' % (chat_id, e))
+#     return False
 
 def getUserConfigPath(chat_id):
     logger.info('[%s] getUserConfigPath.' % (chat_id))

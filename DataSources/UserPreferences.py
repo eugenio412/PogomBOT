@@ -19,22 +19,22 @@ logger = logging.getLogger(__name__)
 
 
 class UserPreferences(object):
-    def __init__(self, chat_id):
+    def __init__(self, chat_id,config):
         self.chat_id = chat_id
+        self.loadedconfig = config
         self.__set_directory(directory=self.__getDefaulteDir())
         self.__set_filename(filename=self.__getDefaultFilename(chat_id))
         # load existing or create file
         self.__load_or_create(False)
+        logger.info('')
 
 
     def __defaultDict(self):
+        global  config
         preferences = dict(
             location = [None, None, None],
-            language = 'en',
-            search_ids = None,
-            locks = None,
-            sent = dict(),
-            jobs = None
+            language = self.loadedconfig.get('DEFAULT_LANG', 'en'),
+            search_ids = []
         )
         return  preferences
 
@@ -107,9 +107,6 @@ A valid filename must not contain especial characters or operating system separa
 
         # Clear out program data.......
         pref_loc = self.__preferences
-        del pref_loc['locks']
-        del pref_loc['sent']
-        del pref_loc['jobs']
 
         if temp:
             try:
@@ -129,6 +126,14 @@ A valid filename must not contain especial characters or operating system separa
             raise Exception("Unable to write preferences to file '%s."%self.fullpath)
         # close file
         fd.close()
+
+    def __isUpdated(self,pref_loc):
+        values = iter(pref_loc.values())
+        first = next(values)
+        if all(first == item for item in self.preferences):
+            return 0
+        else:
+            return 1
 
     @property
     def directory(self):
@@ -203,8 +208,12 @@ A valid filename must not contain especial characters or operating system separa
         self.update_preferences(pref_loc)
 
     def load(self):
-
+        pref_loc = self.preferences
         self.__load_or_create(True)
+        r = self.__isUpdated(pref_loc)
+        if not r:
+            self.set_preferences(pref_loc)
+        return r
 
     def set_preferences(self, preferences):
         """
@@ -218,10 +227,10 @@ A valid filename must not contain especial characters or operating system separa
         assert isinstance(preferences, dict), "preferences must be a dictionary"
         # try dumping to temp file first
         self.__preferences = preferences
-        try:
-            self.__dump_file(temp=True)
-        except Exception as e:
-            logger.error("Unable to dump temporary preferences file (%s)" % e)
+        # try:
+        #     self.__dump_file(temp=True)
+        # except Exception as e:
+        #     logger.error("Unable to dump temporary preferences file (%s)" % e)
         # dump to file
         try:
             self.__dump_file(temp=False)
@@ -241,5 +250,6 @@ A valid filename must not contain especial characters or operating system separa
         assert isinstance(preferences, dict), "preferences must be a dictionary"
         newPreferences = self.preferences
         newPreferences.update(preferences)
+        self.__preferences = newPreferences
         # set new preferences
-        self.set_preferences(newPreferences)
+        # self.set_preferences(newPreferences)

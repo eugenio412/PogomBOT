@@ -36,11 +36,11 @@ logger = logging.getLogger(__name__)
 
 pref = dict()
 
-#jobs = dict()
+jobs = dict()
 
 # User dependant - dont add
-#sent = dict()
-#locks = dict()
+sent = dict()
+locks = dict()
 
 # User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
 #search_ids = dict()
@@ -97,7 +97,7 @@ def cmd_start(bot, update):
     logger.info('[%s] Starting.' % (chat_id))
     bot.sendMessage(chat_id, text='Hello!')
     cmd_help(bot, update)
-    pref[chat_id] = DataSources.UserPreferences(chat_id)
+    pref[chat_id] = DataSources.UserPreferences(chat_id, config)
 
 def cmd_add(bot, update, args, job_queue):
     chat_id = update.message.chat_id
@@ -148,12 +148,12 @@ def cmd_clear(bot, update):
     """Removes the job if the user changed their mind"""
     logger.info('[%s] Clear list.' % (chat_id))
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     # Remove from jobs
-    job = pref[chat_id].get('jobs')
+    job = jobs[chat_id]
     job.schedule_removal()
     pref[chat_id].reset_user()
 
@@ -163,7 +163,7 @@ def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Remove pokemon.' % (chat_id))
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
@@ -182,7 +182,7 @@ def cmd_list(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] List.' % (chat_id))
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
@@ -199,7 +199,7 @@ def cmd_save(bot, update):
     chat_id = update.message.chat_id
     logger.info('[%s] Save.' % (chat_id))
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
@@ -210,17 +210,21 @@ def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
     logger.info('[%s] Load.' % (chat_id))
     pref[chat_id].load()
-    bot.sendMessage(chat_id, text='Load successful.')
+    if pref[chat_id].get('search_ids') is None:
+        bot.sendMessage(chat_id, text='No settings to load.')
+        return
+    else:
+        bot.sendMessage(chat_id, text='Load successful.')
 
     # We might be the first user and above failed....
     if len(pref[chat_id].get('search_ids')) > 0:
         addJob(bot, update, job_queue)
         cmd_list(bot, update)
     else:
-        if pref[chat_id].get('jobs') is not None:
-            job = pref[chat_id].get('jobs')
+        if chat_id not in jobs:
+            job = jobs[chat_id]
             job.schedule_removal()
-            pref[chat_id].set('jobs', None)
+            del jobs[chat_id]
 
 def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
@@ -245,7 +249,7 @@ def cmd_lang(bot, update, args):
 def cmd_location(bot, update):
     chat_id = update.message.chat_id
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
@@ -265,7 +269,7 @@ def cmd_radius(bot, update, args):
 
     chat_id = update.message.chat_id
 
-    if pref[chat_id].get('jobs') is None:
+    if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
@@ -282,6 +286,7 @@ def cmd_radius(bot, update, args):
     if len(args) < 1:
         bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
                                       % (user_location[0], user_location[1], user_location[2]))
+        return
 
     # Change the radius
     pref[chat_id].set('location', [user_location[0], user_location[1], float(args[0])/1000])
@@ -291,7 +296,7 @@ def cmd_radius(bot, update, args):
 
     # Send confirmation
     bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
-                                      % (user_location[0], user_location[1], float(args[0])/1000))
+                                      % (user_location[0], user_location[1], float(args[0])))
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
@@ -313,23 +318,24 @@ def addJob(bot, update, job_queue):
     logger.info('[%s] Adding job.' % (chat_id))
 
     try:
-        if pref[chat_id].get('jobs') is None:
+        if chat_id not in jobs:
             job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
             # Add to jobs
-            jobs = pref[chat_id].get('jobs')
+            jobs[chat_id] = job
             job_queue.put(job)
 
             # User dependant
-            pref[chat_id].set('locks',threading.Lock())
-            if pref[chat_id].set('locks') is None:
-                pref[chat_id].set('locks', threading.Lock())
+            if chat_id not in sent:
+                sent[chat_id] = dict()
+            if chat_id not in locks:
+                locks[chat_id] = threading.Lock()
             text = "Scanner started."
             bot.sendMessage(chat_id, text)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
-    lock = pref[chat_id].get('locks')
+    lock = locks[chat_id]
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
     if len(pokemons) == 0:
         return
@@ -337,7 +343,7 @@ def checkAndSend(bot, chat_id, pokemons):
     try:
         allpokes = dataSource.getPokemonByIds(pokemons)
         lan = pref[chat_id].get('language')
-        mySent = pref[chat_id].get('sent')
+        mySent = sent[chat_id]
         location_data = pref[chat_id].get('location')
         lock.acquire()
 
@@ -408,7 +414,6 @@ def checkAndSend(bot, chat_id, pokemons):
             del mySent[encounter_id]
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
-    pref[chat_id].set('sent', mySent)
     lock.release()
 
 def read_config():

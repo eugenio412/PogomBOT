@@ -15,18 +15,17 @@ import sys
 if sys.version_info[0] < 3:
     raise Exception("Must be using Python 3.")
 
-import sqlite3 as lite
 from telegram.ext import Updater, CommandHandler, Job, MessageHandler, Filters
 from telegram import Bot
 import logging
 from datetime import datetime, timezone
 import os
-import io
 import errno
 import json
 import threading
 import fnmatch
 import DataSources
+from geopy.geocoders import Nominatim
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -79,6 +78,7 @@ def cmd_help(bot, update):
     "/rem <#pokedexID> \n" + \
     "/rem <#pokedexID1> <#pokedexID2> ... \n" + \
     "Send <location> - Search a location \n" +\
+    "/location <s> - Send a location as text \n" +\
     "/radius <m> - Search radius in m \n" +\
     "/remloc - Clear location data\n" +\
     "/list \n" + \
@@ -202,16 +202,19 @@ def cmd_save(bot, update):
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
-
     pref[chat_id].set_preferences(pref[chat_id].preferences)
-
+    bot.sendMessage(chat_id, text='Save successful.')
 
 def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
-    logger.info('[%s] Load.' % (chat_id))
-    pref[chat_id].load()
-    if pref[chat_id].get('search_ids') is None:
-        bot.sendMessage(chat_id, text='No settings to load.')
+    logger.info('[%s] Attempting to load.' % (chat_id))
+    r = pref[chat_id].load()
+    if r is None:
+        bot.sendMessage(chat_id, text='You do not have saved preferences.')
+        return
+
+    if not r:
+        bot.sendMessage(chat_id, text='Already upto date.')
         return
     else:
         bot.sendMessage(chat_id, text='Load successful.')
@@ -258,12 +261,41 @@ def cmd_location(bot, update):
     # We set the location from the users sent location.
     pref[chat_id].set('location', [user_location.latitude, user_location.longitude, location_radius])
 
-    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (
-    chat_id, user_location.latitude, user_location.longitude, location_radius))
+    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
+        pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
-                                      % (user_location.latitude, user_location.longitude, location_radius*1000))
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
+        (pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
+
+def cmd_location_str(bot, update,args):
+    chat_id = update.message.chat_id
+
+    if chat_id not in jobs:
+        bot.sendMessage(chat_id, text='You have no active scanner.')
+        return
+
+    if len(args) <= 0:
+        bot.sendMessage(chat_id, text='You have not supplied a location')
+
+    geolocator = Nominatim()
+    try:
+        user_location = geolocator.geocode(' '.join(args))
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+        bot.sendMessage(chat_id, text='Location not found, or openstreetmap is down.')
+        return
+
+    # We set the location from the users sent location.
+    pref[chat_id].set('location', [user_location.latitude, user_location.longitude, location_radius])
+
+    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
+        pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
+
+    # Send confirmation nessage
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
+        (pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
+
 
 def cmd_radius(bot, update, args):
 
@@ -275,12 +307,13 @@ def cmd_radius(bot, update, args):
 
     # Check if user has set a location
     user_location = pref[chat_id].get('location')
+
     if user_location[0] is None:
         bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
         return
 
     # Get the users location
-    logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s' % (
+    logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s (Km)' % (
     chat_id, user_location[0], user_location[1], user_location[2]))
 
     if len(args) < 1:
@@ -291,18 +324,18 @@ def cmd_radius(bot, update, args):
     # Change the radius
     pref[chat_id].set('location', [user_location[0], user_location[1], float(args[0])/1000])
 
-    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s' % (
-        chat_id, user_location[0], user_location[1], float(args[0])/1000))
+    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (chat_id, pref[chat_id].preferences['location'][0],
+        pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
 
     # Send confirmation
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m"
-                                      % (user_location[0], user_location[1], float(args[0])))
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" % (pref[chat_id].preferences['location'][0],
+        pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
     pref[chat_id].set('location', [None, None, None])
     bot.sendMessage(chat_id, text='Your location has been removed.')
-
+    logger.info('[%s] Location has been unset' % chat_id)
 
 ## Functions
 def error(bot, update, error):
@@ -347,17 +380,9 @@ def checkAndSend(bot, chat_id, pokemons):
         location_data = pref[chat_id].get('location')
         lock.acquire()
 
-        # Do location processing outside of the loop. (save those cycles!)
-        if location_data[0] is not None:
-            # Create Geolocation object from location
-            location_I = DataSources.GeoLocation.from_degrees(location_data[0], location_data[1])
-            # Search radius
-            distance_I = location_data[2]  # This is in KM
-            SW_loc, NE_loc = location_I.bounding_locations(distance_I)
-
         for pokemon in allpokes:
             if location_data[0] is not None:
-                if not pokemon.filterbylocation(SW_loc,NE_loc,location_I,distance_I):
+                if not pokemon.filterbylocation(location_data):
                     continue
 
             encounter_id = pokemon.getEncounterID()
@@ -580,6 +605,7 @@ def main():
     dp.add_handler(CommandHandler("list", cmd_list))
     dp.add_handler(CommandHandler("lang", cmd_lang, pass_args = True))
     dp.add_handler(CommandHandler("radius", cmd_radius, pass_args=True))
+    dp.add_handler(CommandHandler("location", cmd_location_str, pass_args=True))
     dp.add_handler(CommandHandler("remloc", cmd_clearlocation))
     dp.add_handler(MessageHandler([Filters.location],cmd_location))
 

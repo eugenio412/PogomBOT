@@ -18,7 +18,7 @@ import json
 logger = logging.getLogger(__name__)
 
 
-class UserPreferences(object):
+class UserPreferencesModel(object):
     def __init__(self, chat_id,config):
         self.chat_id = chat_id
         self.loadedconfig = config

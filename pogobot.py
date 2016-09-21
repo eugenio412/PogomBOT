@@ -25,6 +25,7 @@ import json
 import threading
 import fnmatch
 import DataSources
+import Preferences
 from geopy.geocoders import Nominatim
 
 # Enable logging
@@ -33,7 +34,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - 
 
 logger = logging.getLogger(__name__)
 
-pref = dict()
+prefs = Preferences.UserPreferences()
 
 jobs = dict()
 
@@ -97,24 +98,25 @@ def cmd_start(bot, update):
     logger.info('[%s] Starting.' % (chat_id))
     bot.sendMessage(chat_id, text='Hello!')
     cmd_help(bot, update)
-    pref[chat_id] = DataSources.UserPreferences(chat_id, config)
 
 def cmd_add(bot, update, args, job_queue):
+
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
         return
-
     addJob(bot, update, job_queue)
     logger.info('[%s] Add pokemon.' % (chat_id))
 
     try:
-        search = pref[chat_id].get('search_ids')
+        search = pref.get('search_ids')
         for x in args:
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
-        pref[chat_id].set('search_ids',search)
+        pref.set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -122,6 +124,8 @@ def cmd_add(bot, update, args, job_queue):
 
 def cmd_addByRarity(bot, update, args, job_queue):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
         return
@@ -132,12 +136,12 @@ def cmd_addByRarity(bot, update, args, job_queue):
     try:
         rarity = int(args[0])
 
-        search = pref[chat_id].get('search_ids')
+        search = pref.get('search_ids')
         for x in pokemon_rarity[rarity]:
             if int(x) not in search:
                 search.append(int(x))
         search.sort()
-        pref[chat_id].set('search_ids', search)
+        pref.set('search_ids', search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -145,6 +149,8 @@ def cmd_addByRarity(bot, update, args, job_queue):
 
 def cmd_clear(bot, update):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     """Removes the job if the user changed their mind"""
     logger.info('[%s] Clear list.' % (chat_id))
 
@@ -155,12 +161,14 @@ def cmd_clear(bot, update):
     # Remove from jobs
     job = jobs[chat_id]
     job.schedule_removal()
-    pref[chat_id].reset_user()
+    pref.reset_user()
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')
 
 def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     logger.info('[%s] Remove pokemon.' % (chat_id))
 
     if chat_id not in jobs:
@@ -168,11 +176,11 @@ def cmd_remove(bot, update, args, job_queue):
         return
 
     try:
-        search = pref[chat_id].get('search_ids')
+        search = pref.get('search_ids')
         for x in args:
             if int(x) in search:
                 search.remove(int(x))
-        pref[chat_id].set('search_ids',search)
+        pref.set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
@@ -180,6 +188,8 @@ def cmd_remove(bot, update, args, job_queue):
 
 def cmd_list(bot, update):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     logger.info('[%s] List.' % (chat_id))
 
     if chat_id not in jobs:
@@ -187,9 +197,9 @@ def cmd_list(bot, update):
         return
 
     try:
-        lan = pref[chat_id].get('language')
+        lan = pref.get('language')
         tmp = 'List of notifications:\n'
-        for x in pref[chat_id].get('search_ids'):
+        for x in pref.get('search_ids'):
             tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
         bot.sendMessage(chat_id, text = tmp)
     except Exception as e:
@@ -197,18 +207,22 @@ def cmd_list(bot, update):
 
 def cmd_save(bot, update):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     logger.info('[%s] Save.' % (chat_id))
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
-    pref[chat_id].set_preferences(pref[chat_id].preferences)
+    pref.set_preferences()
     bot.sendMessage(chat_id, text='Save successful.')
 
 def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
+
     logger.info('[%s] Attempting to load.' % (chat_id))
-    r = pref[chat_id].load()
+    r = pref.load()
     if r is None:
         bot.sendMessage(chat_id, text='You do not have saved preferences.')
         return
@@ -220,7 +234,7 @@ def cmd_load(bot, update, job_queue):
         bot.sendMessage(chat_id, text='Load successful.')
 
     # We might be the first user and above failed....
-    if len(pref[chat_id].get('search_ids')) > 0:
+    if len(pref.get('search_ids')) > 0:
         addJob(bot, update, job_queue)
         cmd_list(bot, update)
     else:
@@ -231,13 +245,14 @@ def cmd_load(bot, update, job_queue):
 
 def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
 
     try:
         lan = args[0]
         logger.info('[%s] Setting lang.' % (chat_id))
 
         if lan in pokemon_name:
-            pref[chat_id].set('language',args[0])
+            pref.set('language',args[0])
             bot.sendMessage(chat_id, text='Language set to [%s].' % (lan))
         else:
             tmp = ''
@@ -251,6 +266,7 @@ def cmd_lang(bot, update, args):
 
 def cmd_location(bot, update):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -259,17 +275,18 @@ def cmd_location(bot, update):
     user_location = update.message.location
 
     # We set the location from the users sent location.
-    pref[chat_id].set('location', [user_location.latitude, user_location.longitude, location_radius])
+    pref.set('location', [user_location.latitude, user_location.longitude, location_radius])
 
     logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
-        pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
+        pref['location'][0], pref['location'][1], pref['location'][2]))
 
     # Send confirmation nessage
     bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
-        (pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
+        (pref['location'][0], pref['location'][1], 1000*pref['location'][2]))
 
 def cmd_location_str(bot, update,args):
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -288,26 +305,27 @@ def cmd_location_str(bot, update,args):
         return
 
     # We set the location from the users sent location.
-    pref[chat_id].set('location', [user_location.latitude, user_location.longitude, location_radius])
+    pref.set('location', [user_location.latitude, user_location.longitude, location_radius])
 
     logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
-        pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
+        pref['location'][0], pref.preferences['location'][1], pref.preferences['location'][2]))
 
     # Send confirmation nessage
     bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
-        (pref[chat_id].preferences['location'][0], pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
+        (pref['location'][0], pref['location'][1], 1000*pref['location'][2]))
 
 
 def cmd_radius(bot, update, args):
 
     chat_id = update.message.chat_id
+    pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
         return
 
     # Check if user has set a location
-    user_location = pref[chat_id].get('location')
+    user_location = pref.get('location')
 
     if user_location[0] is None:
         bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
@@ -325,16 +343,17 @@ def cmd_radius(bot, update, args):
     # Change the radius
     pref[chat_id].set('location', [user_location[0], user_location[1], float(args[0])/1000])
 
-    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (chat_id, pref[chat_id].preferences['location'][0],
-        pref[chat_id].preferences['location'][1], pref[chat_id].preferences['location'][2]))
+    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (chat_id, pref['location'][0],
+        pref['location'][1], pref['location'][2]))
 
     # Send confirmation
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" % (pref[chat_id].preferences['location'][0],
-        pref[chat_id].preferences['location'][1], 1000*pref[chat_id].preferences['location'][2]))
+    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" % (pref['location'][0],
+        pref['location'][1], 1000*pref['location'][2]))
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
-    pref[chat_id].set('location', [None, None, None])
+    pref = prefs.get(chat_id)
+    pref.set('location', [None, None, None])
     bot.sendMessage(chat_id, text='Your location has been removed.')
     logger.info('[%s] Location has been unset' % chat_id)
 
@@ -345,7 +364,7 @@ def error(bot, update, error):
 def alarm(bot, job):
     chat_id = job.context[0]
     logger.info('[%s] Checking alarm.' % (chat_id))
-    checkAndSend(bot, chat_id, pref[chat_id].get('search_ids'))
+    checkAndSend(bot, chat_id, prefs.get(chat_id).get('search_ids'))
 
 def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
@@ -369,6 +388,7 @@ def addJob(bot, update, job_queue):
         logger.error('[%s] %s' % (chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
+    pref = prefs.get(chat_id)
     lock = locks[chat_id]
     logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
     if len(pokemons) == 0:
@@ -376,9 +396,9 @@ def checkAndSend(bot, chat_id, pokemons):
 
     try:
         allpokes = dataSource.getPokemonByIds(pokemons)
-        lan = pref[chat_id].get('language')
+        lan = pref['language']
         mySent = sent[chat_id]
-        location_data = pref[chat_id].get('location')
+        location_data = pref['location']
         lock.acquire()
 
         for pokemon in allpokes:
@@ -568,6 +588,9 @@ def main():
 
     # log all errors
     dp.add_error_handler(error)
+
+    # add the configuration to the preferences
+    prefs.add_config(config)
 
     # Start the Bot
     updater.start_polling()

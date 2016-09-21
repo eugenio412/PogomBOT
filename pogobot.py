@@ -277,6 +277,7 @@ def cmd_location_str(bot, update,args):
 
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='You have not supplied a location')
+        return
 
     geolocator = Nominatim()
     try:

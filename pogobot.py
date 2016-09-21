@@ -277,6 +277,7 @@ def cmd_location_str(bot, update,args):
 
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='You have not supplied a location')
+        return
 
     geolocator = Nominatim()
     try:
@@ -418,8 +419,11 @@ def checkAndSend(bot, chat_id, pokemons):
                 mySent[encounter_id] = disappear_time
                 if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and float(iv) >= pokeMinIV):
                     if not config.get('SEND_MAP_ONLY', True):
-                        bot.sendMessage(chat_id, text = '%s - %s' % (title, address))
+                        geolocator = Nominatim()
+                        real_loc = geolocator.reverse(", ".join([pokemon.getLatitude(), pokemon.getLongitude()]))
+                        bot.sendMessage(chat_id, text = '%s - %s\n%s' % (title, address,real_loc.address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)
+
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
@@ -488,53 +492,6 @@ def read_move_names(loc):
         logger.error('%s' % (repr(e)))
         # Pass to ignore if some files missing.
         pass
-
-# def loadUserConfig(chat_id):
-#     logger.info('[%s] loadUserConfig.' % (chat_id))
-#     fileName = getUserConfigPath(chat_id)
-#     try:
-#         if os.path.isfile(fileName):
-#             with open(fileName, 'r', encoding='utf-8') as f:
-#                 data = json.load(f)
-#                 # Load search ids
-#                 search = []
-#                 search_ids[chat_id] = search
-#                 for x in data['search_ids']:
-#                     if not int(x) in search:
-#                         search.append(int(x))
-#                 # Load language
-#                 language[chat_id] = data['language']
-#
-#                 # Load saved location data. This should be OK for upgrades.
-#                 if 'location' not in data:
-#                     location_ids[chat_id] = [None, None, None]
-#                 else:
-#                     location_ids[chat_id] = data['location']
-#             return True
-#         else:
-#             logger.warn('[%s] loadUserConfig. File not found!' % (chat_id))
-#             pass
-#     except Exception as e:
-#         logger.error('[%s] %s' % (chat_id, e))
-#     return False
-#
-# def saveUserConfig(chat_id):
-#     logger.info('[%s] saveUserConfig.' % (chat_id))
-#     fileName = getUserConfigPath(chat_id)
-#     try:
-#         data = dict()
-#         # Save search ids
-#         data['search_ids'] = search_ids[chat_id]
-#         # Save language
-#         data['language'] = language[chat_id]
-#         # Save Location
-#         data['location'] = location_ids[chat_id]
-#         with open(fileName, 'w', encoding='utf-8') as f:
-#             json.dump(data, f, indent=4, sort_keys=True, separators=(',',':'))
-#         return True
-#     except Exception as e:
-#         logger.error('[%s] %s' % (chat_id, e))
-#     return False
 
 def getUserConfigPath(chat_id):
     logger.info('[%s] getUserConfigPath.' % (chat_id))

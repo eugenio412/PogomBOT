@@ -48,7 +48,7 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 
 ## Changelog
 
-21 sept 2016: added /location to set filter location.
+21 sept 2016: added /location to set locationbased filtering with text. Sending your location works too.
 
 16 sept 2016: added imported locales from pokemongo-map
 

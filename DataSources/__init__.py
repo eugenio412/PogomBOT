@@ -12,5 +12,5 @@ from .DSPokemonGoMapMysql import DSPokemonGoMapMysql
 from .DSPokemonGoMapIV import DSPokemonGoMapIV
 from .DSPokemonGoMapIVMysql import DSPokemonGoMapIVMysql
 
-# Geolocation data
-from .GeoLocation import GeoLocation
+# User preferences
+from .UserPreferences import UserPreferences

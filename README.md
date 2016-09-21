@@ -48,6 +48,8 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 
 ## Changelog
 
+21 sept 2016: added /location to set filter location.
+
 16 sept 2016: added imported locales from pokemongo-map
 
 16 sept 2016: added script to convert pokemongo-map locales

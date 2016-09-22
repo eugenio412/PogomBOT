@@ -159,6 +159,13 @@ def cmd_clear(bot, update):
     # Remove from jobs
     job = jobs[chat_id]
     job.schedule_removal()
+    del jobs[chat_id]
+
+    # Remove from sent
+    del sent[chat_id]
+    # Remove from locks
+    del locks[chat_id]
+
     pref.reset_user()
 
     bot.sendMessage(chat_id, text='Notifications successfully removed!')

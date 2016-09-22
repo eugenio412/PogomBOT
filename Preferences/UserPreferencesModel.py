@@ -19,14 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 class UserPreferencesModel(object):
-    def __init__(self, chat_id,config):
-        self.chat_id = chat_id
-        self.loadedconfig = config
-        self.__set_directory(directory=self.__getDefaulteDir())
-        self.__set_filename(filename=self.__getDefaultFilename(chat_id))
-        # load existing or create file
-        self.__load_or_create(False)
-        logger.info('[%s] Created new preferences.' % self.chat_id)
 
     def __defaultDict(self):
         global  config
@@ -35,7 +27,16 @@ class UserPreferencesModel(object):
             language = self.loadedconfig.get('DEFAULT_LANG', 'en'),
             search_ids = []
         )
-        return  preferences
+        return preferences
+
+    def __init__(self, chat_id,config):
+        self.chat_id = chat_id
+        self.loadedconfig = config
+        self.__set_directory(directory=self.__getDefaulteDir())
+        self.__set_filename(filename=self.__getDefaultFilename(chat_id))
+        # load existing or create file
+        self.__load_or_create(False)
+        logger.info('[%s] Created new preferences.' % self.chat_id)
 
     def __getDefaulteDir(self):
         user_path = os.path.join(

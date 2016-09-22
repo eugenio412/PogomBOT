@@ -33,9 +33,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - 
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
-
 prefs = Preferences.UserPreferences()
-
 jobs = dict()
 
 # User dependant - dont add
@@ -341,7 +339,7 @@ def cmd_radius(bot, update, args):
         return
 
     # Change the radius
-    pref[chat_id].set('location', [user_location[0], user_location[1], float(args[0])/1000])
+    pref.set('location', [user_location[0], user_location[1], float(args[0])/1000])
 
     logger.info('[%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (chat_id, pref['location'][0],
         pref['location'][1], pref['location'][2]))

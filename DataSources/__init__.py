@@ -1,4 +1,3 @@
-from Preferences.UserPreferencesModel import UserPreferences
 from .DSPogom import DSPogom
 from .DSPogomMysql import DSPogomMysql
 from .DSPokemon import DSPokemon

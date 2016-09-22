@@ -5,6 +5,9 @@
 	"DB_CONNECT": "/PATH/TO/POGOM",
 	"DEFAULT_LANG": "en",
 	"SEND_MAP_ONLY": true,
-	"POKEMON_MINIMUM_IV": 0,
-	"SEND_POKEMON_WITHOUT_IV": true
+	"SEND_POKEMON_WITHOUT_IV": true,
+	"POKEMON_MIN_IV_LIST": {
+		"1": 10.1,
+		"2": 20
+	}
 }

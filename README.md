@@ -48,6 +48,10 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 
 ## Changelog
 
+23 sept 2016: added user selected language for move names if available. Otherwise using english.
+
+23 sept 2016: added individual iv filter for pokemons.
+
 21 sept 2016: added /location to set locationbased filtering with text. Sending your location works too.
 
 16 sept 2016: added imported locales from pokemongo-map

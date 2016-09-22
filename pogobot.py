@@ -35,6 +35,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - 
 logger = logging.getLogger(__name__)
 prefs = Preferences.UserPreferences()
 jobs = dict()
+geolocator = Nominatim()
 
 # User dependant - dont add
 sent = dict()
@@ -301,7 +302,6 @@ def cmd_location_str(bot, update,args):
         bot.sendMessage(chat_id, text='You have not supplied a location')
         return
 
-    geolocator = Nominatim()
     try:
         user_location = geolocator.geocode(' '.join(args))
     except Exception as e:
@@ -404,6 +404,14 @@ def checkAndSend(bot, chat_id, pokemons):
         lan = pref['language']
         mySent = sent[chat_id]
         location_data = pref['location']
+
+        sendPokeWithoutIV = config.get('SEND_POKEMON_WITHOUT_IV', True)
+        pokeMinIVFilterList = config.get('POKEMON_MIN_IV_FILTER_LIST', dict())
+
+        moveNames = move_name["en"]
+        if lan in move_name:
+            moveNames = move_name[lan]
+
         lock.acquire()
 
         for pokemon in allpokes:
@@ -433,18 +441,20 @@ def checkAndSend(bot, chat_id, pokemons):
 
             if move1 is not None and move2 is not None:
                 # Use language if other move languages are available.
-                move1Name = move_name["en"][move1]
-                move2Name = move_name["en"][move2]
+                move1Name = moveNames[move1]
+                move2Name = moveNames[move2]
                 address += " Moves: %s,%s" % (move1Name, move2Name)
 
-            sendPokeWithoutIV = config.get('SEND_POKEMON_WITHOUT_IV', True)
-            pokeMinIV = float(config.get('POKEMON_MINIMUM_IV', 0))
+            pokeMinIV = pokeMinIVFilterList[pok_id]
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
-                if (not ivAvailable) or (iv is None and sendPokeWithoutIV) or (iv is not None and float(iv) >= pokeMinIV):
+
+                ivNoneAndSendWithout = (iv is None) and sendPokeWithoutIV
+                ivNotNoneAndPokeMinIVNone = (iv is not None) and (pokeMinIV is None)
+                ivHigherEqualFilter = (iv is not None) and (pokeMinIV is not None) and (float(iv) >= float(pokeMinIV))
+                if (not ivAvailable or ivNoneAndSendWithout or ivNotNoneAndPokeMinIVNone or ivHigherEqualFilter):
                     if not config.get('SEND_MAP_ONLY', True):
-                        geolocator = Nominatim()
                         real_loc = geolocator.reverse(", ".join([pokemon.getLatitude(), pokemon.getLongitude()]))
                         bot.sendMessage(chat_id, text = '%s - %s\n%s' % (title, address,real_loc.address))
                     bot.sendVenue(chat_id, latitude, longitude, title, address)
@@ -491,8 +501,13 @@ def report_config():
     logger.info('DB_CONNECT: <%s>' % (config.get('DB_CONNECT', None)))
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
-    logger.info('POKEMON_MINIMUM_IV: <%s>' % (config.get('POKEMON_MINIMUM_IV', None)))
     logger.info('SEND_POKEMON_WITHOUT_IV: <%s>' % (config.get('SEND_POKEMON_WITHOUT_IV', None)))
+    poke_ivfilter_list = config.get('POKEMON_MIN_IV_FILTER_LIST', dict())
+    tmp = ''
+    for poke_id in poke_ivfilter_list:
+        tmp = '%s %s:%s' % (tmp, poke_id, poke_ivfilter_list[poke_id])
+    tmp = tmp[1:]
+    logger.info('POKEMON_MIN_IV_FILTER_LIST: <%s>' % (tmp))
 
 def read_pokemon_names(loc):
     logger.info('Reading pokemon names. <%s>' % loc)

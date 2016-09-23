@@ -445,7 +445,9 @@ def checkAndSend(bot, chat_id, pokemons):
                 move2Name = moveNames[move2]
                 address += " Moves: %s,%s" % (move1Name, move2Name)
 
-            pokeMinIV = pokeMinIVFilterList[pok_id]
+            pokeMinIV = None
+            if pok_id in pokeMinIVFilterList:
+                pokeMinIV = pokeMinIVFilterList[pok_id]
 
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time

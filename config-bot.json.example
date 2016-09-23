@@ -6,7 +6,7 @@
 	"DEFAULT_LANG": "en",
 	"SEND_MAP_ONLY": true,
 	"SEND_POKEMON_WITHOUT_IV": true,
-	"POKEMON_MIN_IV_LIST": {
+	"POKEMON_MIN_IV_FILTER_LIST": {
 		"1": 10.1,
 		"2": 20
 	}

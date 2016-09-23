@@ -560,8 +560,10 @@ def main():
 
     dbType = config.get('DB_TYPE', None)
     scannerName = config.get('SCANNER_NAME', None)
+
     global dataSource
     dataSource = None
+    
     global ivAvailable
     ivAvailable = False
     if dbType == 'sqlite':
@@ -579,6 +581,14 @@ def main():
             dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
             dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
+            ivAvailable = True
+    elif dbType == 'webhook':
+        if scannerName == 'pogom':
+            pass
+        elif scannerName == 'pokemongo-map':
+            dataSource = DataSources.DSPokemonGoMapWebhook(config.get('DB_CONNECT', None))
+        elif scannerName == 'pokemongo-map-iv':
+            dataSource = DataSources.DSPokemonGoMapIVWebhook(config.get('DB_CONNECT', None))
             ivAvailable = True
     if not dataSource:
         raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))

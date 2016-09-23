@@ -1,7 +1,12 @@
+from .DSPokemon import DSPokemon
+
 from .DSPogom import DSPogom
 from .DSPogomMysql import DSPogomMysql
-from .DSPokemon import DSPokemon
+
 from .DSPokemonGoMap import DSPokemonGoMap
+from .DSPokemonGoMapMysql import DSPokemonGoMapMysql
+from .DSPokemonGoMapWebhook import DSPokemonGoMapWebhook
+
 from .DSPokemonGoMapIV import DSPokemonGoMapIV
 from .DSPokemonGoMapIVMysql import DSPokemonGoMapIVMysql
-from .DSPokemonGoMapMysql import DSPokemonGoMapMysql
+from .DSPokemonGoMapIVWebhook import DSPokemonGoMapIVWebhook

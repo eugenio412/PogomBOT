@@ -430,11 +430,11 @@ def checkAndSend(bot, chat_id, pokemons):
             move2 = pokemon.getMove2()
 
             delta = disappear_time - datetime.utcnow()
-            delta = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+            deltaStr = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
             disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
 
             title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %s (%s)." % (disappear_time_str, delta)
+            address = "Disappear at %s (%s)." % (disappear_time_str, deltaStr)
 
             if iv is not None:
                 title += " IV:%s" % (iv)
@@ -452,10 +452,11 @@ def checkAndSend(bot, chat_id, pokemons):
             if encounter_id not in mySent:
                 mySent[encounter_id] = disappear_time
 
+                notDisappeared = delta.seconds > 0
                 ivNoneAndSendWithout = (iv is None) and sendPokeWithoutIV
                 ivNotNoneAndPokeMinIVNone = (iv is not None) and (pokeMinIV is None)
                 ivHigherEqualFilter = (iv is not None) and (pokeMinIV is not None) and (float(iv) >= float(pokeMinIV))
-                if (not ivAvailable or ivNoneAndSendWithout or ivNotNoneAndPokeMinIVNone or ivHigherEqualFilter):
+                if notDisappeared and (not ivAvailable or ivNoneAndSendWithout or ivNotNoneAndPokeMinIVNone or ivHigherEqualFilter):
                     if not config.get('SEND_MAP_ONLY', True):
                         real_loc = geolocator.reverse(", ".join([pokemon.getLatitude(), pokemon.getLongitude()]))
                         bot.sendMessage(chat_id, text = '%s - %s\n%s' % (title, address,real_loc.address))
@@ -563,7 +564,7 @@ def main():
 
     global dataSource
     dataSource = None
-    
+
     global ivAvailable
     ivAvailable = False
     if dbType == 'sqlite':

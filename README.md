@@ -48,6 +48,8 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 
 ## Changelog
 
+29 sept 2016: added user whitelist and admin capability.
+
 23 sept 2016: added webhooks for pokemongo-map and pokemongo-map-iv.
 
 23 sept 2016: added user selected language for move names if available. Otherwise using english.

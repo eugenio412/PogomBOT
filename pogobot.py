@@ -27,6 +27,7 @@ import fnmatch
 import DataSources
 import Preferences
 from geopy.geocoders import Nominatim
+import Whitelist
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -69,7 +70,12 @@ rarity_value = ["very common","common","uncommon","rare","very rare","ultrarare"
 # update. Error handlers also receive the raised TelegramError object in error.
 def cmd_help(bot, update):
     chat_id = update.message.chat_id
-    logger.info('[%s] Sending help text.' % (chat_id))
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (help).' % (userName, chat_id))
+        return
+
+    logger.info('[%s@%s] Sending help text.' % (userName, chat_id))
     text = "/help /start \n" + \
     "/add <#pokedexID> \n" + \
     "/add <#pokedexID1> <#pokedexID2> ... \n" + \
@@ -94,20 +100,29 @@ def cmd_help(bot, update):
 
 def cmd_start(bot, update):
     chat_id = update.message.chat_id
-    logger.info('[%s] Starting.' % (chat_id))
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (start).' % (userName, chat_id))
+        return
+
+    logger.info('[%s@%s] Starting.' % (userName, chat_id))
     bot.sendMessage(chat_id, text='Hello!')
     cmd_help(bot, update)
 
 def cmd_add(bot, update, args, job_queue):
-
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (add).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
         return
     addJob(bot, update, job_queue)
-    logger.info('[%s] Add pokemon.' % (chat_id))
+    logger.info('[%s@%s] Add pokemon.' % (userName, chat_id))
 
     try:
         search = pref.get('search_ids')
@@ -118,11 +133,16 @@ def cmd_add(bot, update, args, job_queue):
         pref.set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
 
 def cmd_addByRarity(bot, update, args, job_queue):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (addByRarity).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
@@ -130,7 +150,7 @@ def cmd_addByRarity(bot, update, args, job_queue):
         return
 
     addJob(bot, update, job_queue)
-    logger.info('[%s] Add pokemon by rarity.' % (chat_id))
+    logger.info('[%s@%s] Add pokemon by rarity.' % (userName, chat_id))
 
     try:
         rarity = int(args[0])
@@ -143,15 +163,20 @@ def cmd_addByRarity(bot, update, args, job_queue):
         pref.set('search_ids', search)
         cmd_list(bot, update)
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
 
 def cmd_clear(bot, update):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (clear).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     """Removes the job if the user changed their mind"""
-    logger.info('[%s] Clear list.' % (chat_id))
+    logger.info('[%s@%s] Clear list.' % (userName, chat_id))
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -173,9 +198,14 @@ def cmd_clear(bot, update):
 
 def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (remove).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
-    logger.info('[%s] Remove pokemon.' % (chat_id))
+    logger.info('[%s@%s] Remove pokemon.' % (userName, chat_id))
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -189,14 +219,19 @@ def cmd_remove(bot, update, args, job_queue):
         pref.set('search_ids',search)
         cmd_list(bot, update)
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
 
 def cmd_list(bot, update):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (list).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
-    logger.info('[%s] List.' % (chat_id))
+    logger.info('[%s@%s] List.' % (userName, chat_id))
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -209,13 +244,18 @@ def cmd_list(bot, update):
             tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
         bot.sendMessage(chat_id, text = tmp)
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
 
 def cmd_save(bot, update):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (save).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
-    logger.info('[%s] Save.' % (chat_id))
+    logger.info('[%s@%s] Save.' % (userName, chat_id))
 
     if chat_id not in jobs:
         bot.sendMessage(chat_id, text='You have no active scanner.')
@@ -225,9 +265,14 @@ def cmd_save(bot, update):
 
 def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (load).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
-    logger.info('[%s] Attempting to load.' % (chat_id))
+    logger.info('[%s@%s] Attempting to load.' % (userName, chat_id))
     r = pref.load()
     if r is None:
         bot.sendMessage(chat_id, text='You do not have saved preferences.')
@@ -251,11 +296,16 @@ def cmd_load(bot, update, job_queue):
 
 def cmd_lang(bot, update, args):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (lang).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     try:
         lan = args[0]
-        logger.info('[%s] Setting lang.' % (chat_id))
+        logger.info('[%s@%s] Setting lang.' % (userName, chat_id))
 
         if lan in pokemon_name:
             pref.set('language',args[0])
@@ -267,11 +317,16 @@ def cmd_lang(bot, update, args):
             tmp = tmp[:-2]
             bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
         bot.sendMessage(chat_id, text='usage: /lang <#language>')
 
 def cmd_location(bot, update):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (location).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
@@ -283,7 +338,7 @@ def cmd_location(bot, update):
     # We set the location from the users sent location.
     pref.set('location', [user_location.latitude, user_location.longitude, location_radius])
 
-    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
+    logger.info('[%s@%s] Setting scan location to Lat %s, Lon %s, R %s' % (userName, chat_id,
         pref['location'][0], pref['location'][1], pref['location'][2]))
 
     # Send confirmation nessage
@@ -292,6 +347,11 @@ def cmd_location(bot, update):
 
 def cmd_location_str(bot, update,args):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (location_str).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
@@ -305,14 +365,14 @@ def cmd_location_str(bot, update,args):
     try:
         user_location = geolocator.geocode(' '.join(args))
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
         bot.sendMessage(chat_id, text='Location not found, or openstreetmap is down.')
         return
 
     # We set the location from the users sent location.
     pref.set('location', [user_location.latitude, user_location.longitude, location_radius])
 
-    logger.info('[%s] Setting scan location to Lat %s, Lon %s, R %s' % (chat_id,
+    logger.info('[%s@%s] Setting scan location to Lat %s, Lon %s, R %s' % (userName, chat_id,
         pref['location'][0], pref.preferences['location'][1], pref.preferences['location'][2]))
 
     # Send confirmation nessage
@@ -321,8 +381,12 @@ def cmd_location_str(bot, update,args):
 
 
 def cmd_radius(bot, update, args):
-
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (radius).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
@@ -337,8 +401,8 @@ def cmd_radius(bot, update, args):
         return
 
     # Get the users location
-    logger.info('[%s] Retrieved Location as Lat %s, Lon %s, R %s (Km)' % (
-    chat_id, user_location[0], user_location[1], user_location[2]))
+    logger.info('[%s@%s] Retrieved Location as Lat %s, Lon %s, R %s (Km)' % (
+    userName, chat_id, user_location[0], user_location[1], user_location[2]))
 
     if len(args) < 1:
         bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
@@ -348,7 +412,7 @@ def cmd_radius(bot, update, args):
     # Change the radius
     pref.set('location', [user_location[0], user_location[1], float(args[0])/1000])
 
-    logger.info('[%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (chat_id, pref['location'][0],
+    logger.info('[%s@%s] Set Location as Lat %s, Lon %s, R %s (Km)' % (userName, chat_id, pref['location'][0],
         pref['location'][1], pref['location'][2]))
 
     # Send confirmation
@@ -357,10 +421,57 @@ def cmd_radius(bot, update, args):
 
 def cmd_clearlocation(bot, update):
     chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isWhitelisted(userName):
+        logger.info('[%s@%s] User blocked (clearlocation).' % (userName, chat_id))
+        return
+
     pref = prefs.get(chat_id)
     pref.set('location', [None, None, None])
     bot.sendMessage(chat_id, text='Your location has been removed.')
-    logger.info('[%s] Location has been unset' % chat_id)
+    logger.info('[%s@%s] Location has been unset' % (userName, chat_id))
+
+def cmd_addToWhitelist(bot, update, args):
+    chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isAdmin(userName):
+        logger.info('[%s@%s] User blocked (addToWhitelist).' % (userName, chat_id))
+        return
+    if not whitelist.isWhitelistEnabled():
+        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+
+    if len(args) <= 0:
+        bot.sendMessage(chat_id, text='usage: "/wladd <username>"" or "/wladd <username_1> <username_2>"')
+        return
+
+    try:
+        for x in args:
+            whitelist.addUser(x)
+        bot.sendMessage(chat_id, "Added to whitelist.")
+    except Exception as e:
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
+        bot.sendMessage(chat_id, text='usage: "/wladd <username>"" or "/wladd <username_1> <username_2>"')
+
+def cmd_remFromWhitelist(bot, update, args):
+    chat_id = update.message.chat_id
+    userName = update.message.from_user.username
+    if not whitelist.isAdmin(userName):
+        logger.info('[%s@%s] User blocked (remFromWhitelist).' % (userName, chat_id))
+        return
+    if not whitelist.isWhitelistEnabled():
+        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+
+    if len(args) <= 0:
+        bot.sendMessage(chat_id, text='usage: "/wlrem <username>"" or "/wlrem <username_1> <username_2>"')
+        return
+
+    try:
+        for x in args:
+            whitelist.remUser(x)
+        bot.sendMessage(chat_id, "Removed from whitelist.")
+    except Exception as e:
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
+        bot.sendMessage(chat_id, text='usage: "/wlrem <username>"" or "/wlrem <username_1> <username_2>"')
 
 ## Functions
 def error(bot, update, error):
@@ -373,7 +484,8 @@ def alarm(bot, job):
 
 def addJob(bot, update, job_queue):
     chat_id = update.message.chat_id
-    logger.info('[%s] Adding job.' % (chat_id))
+    userName = update.message.from_user.username
+    logger.info('[%s@%s] Adding job.' % (userName, chat_id))
 
     try:
         if chat_id not in jobs:
@@ -390,7 +502,7 @@ def addJob(bot, update, job_queue):
             text = "Scanner started."
             bot.sendMessage(chat_id, text)
     except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+        logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
     pref = prefs.get(chat_id)
@@ -498,6 +610,13 @@ def read_config():
     report_config()
 
 def report_config():
+    admins_list = config.get('LIST_OF_ADMINS', [])
+    tmp = ''
+    for admin in admins_list:
+        tmp = '%s, %s' % (tmp, admin)
+    tmp = tmp[2:]
+    logger.info('LIST_OF_ADMINS: <%s>' % (tmp))
+
     logger.info('TELEGRAM_TOKEN: <%s>' % (config.get('TELEGRAM_TOKEN', None)))
     logger.info('SCANNER_NAME: <%s>' % (config.get('SCANNER_NAME', None)))
     logger.info('DB_TYPE: <%s>' % (config.get('DB_TYPE', None)))
@@ -505,6 +624,7 @@ def report_config():
     logger.info('DEFAULT_LANG: <%s>' % (config.get('DEFAULT_LANG', None)))
     logger.info('SEND_MAP_ONLY: <%s>' % (config.get('SEND_MAP_ONLY', None)))
     logger.info('SEND_POKEMON_WITHOUT_IV: <%s>' % (config.get('SEND_POKEMON_WITHOUT_IV', None)))
+
     poke_ivfilter_list = config.get('POKEMON_MIN_IV_FILTER_LIST', dict())
     tmp = ''
     for poke_id in poke_ivfilter_list:
@@ -535,17 +655,6 @@ def read_move_names(loc):
         logger.error('%s' % (repr(e)))
         # Pass to ignore if some files missing.
         pass
-
-def getUserConfigPath(chat_id):
-    logger.info('[%s] getUserConfigPath.' % (chat_id))
-    user_path = os.path.join(
-        os.path.dirname(sys.argv[0]), "userdata")
-    try:
-        os.makedirs(user_path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            logger.error('[%s] %s' % (chat_id, e))
-    return os.path.join(user_path, '%s.json' % chat_id)
 
 def main():
     logger.info('Starting...')
@@ -594,6 +703,9 @@ def main():
     if not dataSource:
         raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 
+    global whitelist
+    whitelist = Whitelist.Whitelist(config)
+
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)
     updater = Updater(token)
@@ -618,6 +730,9 @@ def main():
     dp.add_handler(CommandHandler("location", cmd_location_str, pass_args=True))
     dp.add_handler(CommandHandler("remloc", cmd_clearlocation))
     dp.add_handler(MessageHandler([Filters.location],cmd_location))
+    dp.add_handler(CommandHandler("wladd", cmd_addToWhitelist, pass_args=True))
+    dp.add_handler(CommandHandler("wlrem", cmd_remFromWhitelist, pass_args=True))
+
 
     # log all errors
     dp.add_error_handler(error)

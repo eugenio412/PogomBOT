@@ -434,11 +434,12 @@ def cmd_clearlocation(bot, update):
 def cmd_addToWhitelist(bot, update, args):
     chat_id = update.message.chat_id
     userName = update.message.from_user.username
+    if not whitelist.isWhitelistEnabled():
+        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+        return
     if not whitelist.isAdmin(userName):
         logger.info('[%s@%s] User blocked (addToWhitelist).' % (userName, chat_id))
         return
-    if not whitelist.isWhitelistEnabled():
-        bot.sendMessage(chat_id, text='Whitelist is disabled.')
 
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/wladd <username>"" or "/wladd <username_1> <username_2>"')
@@ -455,11 +456,12 @@ def cmd_addToWhitelist(bot, update, args):
 def cmd_remFromWhitelist(bot, update, args):
     chat_id = update.message.chat_id
     userName = update.message.from_user.username
+    if not whitelist.isWhitelistEnabled():
+        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+        return
     if not whitelist.isAdmin(userName):
         logger.info('[%s@%s] User blocked (remFromWhitelist).' % (userName, chat_id))
         return
-    if not whitelist.isWhitelistEnabled():
-        bot.sendMessage(chat_id, text='Whitelist is disabled.')
 
     if len(args) <= 0:
         bot.sendMessage(chat_id, text='usage: "/wlrem <username>"" or "/wlrem <username_1> <username_2>"')

@@ -47,19 +47,13 @@ IF YOU ARE REPORTING A BUG OPEN A ISSUE, but if you want to contact the creators
 ![image](https://raw.githubusercontent.com/eugenio412/PogomBOT/master/images/pogobot.jpg)
 
 ## Changelog
-
-29 sept 2016: added user whitelist and admin capability.
-
-23 sept 2016: added webhooks for pokemongo-map and pokemongo-map-iv.
-
-23 sept 2016: added user selected language for move names if available. Otherwise using english.
-
-23 sept 2016: added individual iv filter for pokemons.
-
-21 sept 2016: added /location to set locationbased filtering with text. Sending your location works too.
-
-16 sept 2016: added imported locales from pokemongo-map
-
-16 sept 2016: added script to convert pokemongo-map locales
-
-14 sept 2016: added POKEMON_MINIMUM_IV feature
+  
+30 sept 2016: added pogom-iv (sqlite + mysql).  
+29 sept 2016: added user whitelist and admin capability.  
+23 sept 2016: added webhooks for pokemongo-map and pokemongo-map-iv.  
+23 sept 2016: added user selected language for move names if available. Otherwise using english.  
+23 sept 2016: added individual iv filter for pokemons.  
+21 sept 2016: added /location to set locationbased filtering with text. Sending your location works too.  
+16 sept 2016: added imported locales from pokemongo-map  
+16 sept 2016: added script to convert pokemongo-map locales  
+14 sept 2016: added POKEMON_MINIMUM_IV feature  

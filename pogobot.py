@@ -682,30 +682,32 @@ def main():
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
         elif scannerName == 'pogom-iv':
+            ivAvailable = True
             dataSource = DataSources.DSPogomIV(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
-            dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
             ivAvailable = True
+            dataSource = DataSources.DSPokemonGoMapIV(config.get('DB_CONNECT', None))
     elif dbType == 'mysql':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pogom-iv':
+            ivAvailable = True
             dataSource = DataSources.DSPogomIVMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
-            dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
             ivAvailable = True
+            dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
     elif dbType == 'webhook':
         if scannerName == 'pogom':
             pass
         elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMapWebhook(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
-            dataSource = DataSources.DSPokemonGoMapIVWebhook(config.get('DB_CONNECT', None))
             ivAvailable = True
+            dataSource = DataSources.DSPokemonGoMapIVWebhook(config.get('DB_CONNECT', None))
     if not dataSource:
         raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 

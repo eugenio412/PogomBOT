@@ -681,6 +681,8 @@ def main():
     if dbType == 'sqlite':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
+        elif scannerName == 'pogom-iv':
+            dataSource = DataSources.DSPogomIV(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMap(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':
@@ -689,6 +691,8 @@ def main():
     elif dbType == 'mysql':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogomMysql(config.get('DB_CONNECT', None))
+        elif scannerName == 'pogom-iv':
+            dataSource = DataSources.DSPogomIVMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map':
             dataSource = DataSources.DSPokemonGoMapMysql(config.get('DB_CONNECT', None))
         elif scannerName == 'pokemongo-map-iv':

@@ -166,7 +166,7 @@ class Locales:
         try:
             r = read_in[str(id_in)]
         except:
-            read_in = self.__get_lan(self.default_lang, 1)
+            read_in = self.__get_lan(self.default_lang, 2)
             r = read_in[str(id_in)]
 
         base_string = self.customisation['move']

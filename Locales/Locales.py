@@ -109,4 +109,5 @@ class Locales:
 
     @property
     def locales(self):
+        # return list(self.__locale.keys()) # THIS IS TO BE USED WHEN TRANSLATION IS COMPLETE
         return list(self.__pokemon_name.keys())

@@ -301,7 +301,7 @@ def cmd_lang(bot, update, args):
         logger.info('[%s@%s] Setting lang.' % (user_name, chat_id))
 
         if lan in lang.locales:
-            pref.set('language', args[0])
+            pref.set('language', lan)
             bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 14) % lan)
         else:
             bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 15) % ', '.join(lang.locales))
@@ -596,6 +596,14 @@ def check_and_send(bot, chat_id, pokemons):
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
+
+
+def send_to_all(bot, message):
+    for chat_id in jobs.keys():
+        if isinstance(message, int):
+            pref = prefs.get(chat_id)
+            message = lang.get_string(pref.get('language'), message)
+        bot.sendMessage(chat_id, text=message)
 
 
 def read_config():

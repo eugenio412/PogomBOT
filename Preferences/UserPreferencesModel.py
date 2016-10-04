@@ -10,35 +10,37 @@
 # Simon Ward 17/09/2016
 
 
-import logging
-import sys, os, copy, tempfile
+import copy
 import errno
 import json
+import logging
+import os
+import sys
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 
 class UserPreferencesModel(object):
-
-    def __defaultDict(self):
-        global  config
+    def __default_dict(self):
+        global config
         preferences = dict(
-            location = [None, None, None],
-            language = self.loadedconfig.get('DEFAULT_LANG', 'en'),
-            search_ids = []
+            location=[None, None, None],
+            language=self.loadedconfig.get('DEFAULT_LANG', 'en'),
+            search_ids=[]
         )
         return preferences
 
-    def __init__(self, chat_id,config):
+    def __init__(self, chat_id, config_in):
         self.chat_id = chat_id
-        self.loadedconfig = config
-        self.__set_directory(directory=self.__getDefaulteDir())
-        self.__set_filename(filename=self.__getDefaultFilename(chat_id))
+        self.loadedconfig = config_in
+        self.__set_directory(directory=self.__get_default_dir())
+        self.__set_filename(filename=self.__get_default_filename(chat_id))
         # load existing or create file
         self.__load_or_create(False)
         logger.info('[%s] Created new preferences.' % self.chat_id)
 
-    def __getDefaulteDir(self):
+    def __get_default_dir(self):
         user_path = os.path.join(
             os.path.dirname(sys.argv[0]), "userdata")
         try:
@@ -48,8 +50,8 @@ class UserPreferencesModel(object):
                 logger.error('Unable to make preference directory')
         return user_path
 
-    def __getDefaultFilename(self, chat_id):
-        return '%s.json' % (chat_id)
+    def __get_default_filename(self, chat_id):
+        return '%s.json' % chat_id
 
     def __getitem__(self, key):
         return dict.__getitem__(self.__preferences, key)
@@ -79,7 +81,7 @@ A valid filename must not contain especial characters or operating system separa
             logging.warning("[%s] '.json' appended to given filename '%s'" % (self.chat_id, filename))
         self.__filename = filename
 
-    def __load_or_create(self,sw):
+    def __load_or_create(self, sw):
         # Do we load or create new
         if sw:
             # We load
@@ -93,22 +95,22 @@ A valid filename must not contain especial characters or operating system separa
                             preferences = json.load(f)
                     else:
                         logger.warn('[%s] loadUserConfig. File not found!' % self.chat_id)
-                        preferences = self.__defaultDict()
+                        preferences = self.__default_dict()
                         pass
                 except Exception as e:
                     logger.error('[%s] %s' % (self.chat_id, e))
-                    preferences = self.__defaultDict()
+                    preferences = self.__default_dict()
                 self.__preferences = preferences
             else:
                 # The user does not have a preference file. Create one
-                self.__preferences = self.__defaultDict()
+                self.__preferences = self.__default_dict()
                 self.__dump_file()
         else:
             # Just create in memory
-            self.__preferences = self.__defaultDict()
+            self.__preferences = self.__default_dict()
             # self.__dump_file()
 
-    def __dump_file(self, temp = False):
+    def __dump_file(self, temp=False):
 
         # Clear out program data.......
         pref_loc = self.__preferences
@@ -131,11 +133,11 @@ A valid filename must not contain especial characters or operating system separa
                 json.dump(pref_loc, fd, indent=4, sort_keys=True, separators=(',', ':'))
         except Exception as e:
             logger.error('[%s] Unable to write to preferences file. (%s)' % (self.chat_id, e))
-            raise Exception("Unable to write preferences to file '%s."%self.fullpath)
+            raise Exception("Unable to write preferences to file '%s." % self.fullpath)
         # close file
         fd.close()
 
-    def __isUpdated(self,pref_loc):
+    def __is_updated(self, pref_loc):
         values = iter(pref_loc.values())
         first = next(values)
         if all(first == item for item in self.preferences):
@@ -203,11 +205,10 @@ A valid filename must not contain especial characters or operating system separa
         return True, ""
 
     def reset_user(self):
-        pref_loc = self.__defaultDict()
+        pref_loc = self.__default_dict()
         self.update_preferences(pref_loc)
 
-
-    def set(self,key,value):
+    def set(self, key, value):
         pref_loc = self.preferences
         if key in pref_loc:
             pref_loc[key] = value
@@ -218,10 +219,9 @@ A valid filename must not contain especial characters or operating system separa
     def load(self):
         pref_loc = self.preferences
         self.__load_or_create(True)
-        return self.__isUpdated(pref_loc)
+        return self.__is_updated(pref_loc)
 
-
-    def set_preferences(self, preferences = None):
+    def set_preferences(self, preferences=None):
         """
         Set preferences and update preferences file.
 
@@ -246,7 +246,7 @@ A valid filename must not contain especial characters or operating system separa
             logger.error("Unable to dump preferences file (%s). "
                          "Preferences file can be corrupt, but in memory stored preferences are "
                          "still available using and accessible using preferences property." % e)
-        # set preferences
+            # set preferences
 
     def update_preferences(self, preferences):
         """
@@ -258,8 +258,8 @@ A valid filename must not contain especial characters or operating system separa
         flag, m = self.check_preferences(preferences)
         assert flag, m
         assert isinstance(preferences, dict), "Preferences must be a dictionary"
-        newPreferences = self.preferences
-        newPreferences.update(preferences)
-        self.__preferences = newPreferences
+        new_preferences = self.preferences
+        new_preferences.update(preferences)
+        self.__preferences = new_preferences
         # set new preferences
-        # self.set_preferences(newPreferences)
+        # self.set_preferences(new_preferences)

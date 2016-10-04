@@ -1,8 +1,7 @@
-import sys
-import os
+import fnmatch
 import json
 import logging
-import fnmatch
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class Locales:
                 self.__read_pokemon_names(file.split('.')[1])
             if fnmatch.fnmatch(file, 'moves.*.json'):
                 self.__read_move_names(file.split('.')[1])
-            if fnmatch.fnmatch(file,'lang.*.json'):
+            if fnmatch.fnmatch(file, 'lang.*.json'):
                 self.__read_locale(file.split('.')[1])
                 if file.split('.')[1] == self.default_lang:
                     self.__default_avail = True
@@ -59,7 +58,7 @@ class Locales:
             # Pass to ignore if some files missing.
             pass
 
-    def __read_locale(self,loc):
+    def __read_locale(self, loc):
         logger.info('Reading locale. <%s>' % loc)
         config_path = "Locales/lang." + loc + ".json"
         try:
@@ -70,25 +69,29 @@ class Locales:
             # Pass to ignore if some files missing.
             pass
 
-    def __getLan(self,loc,id):
+    def __get_lan(self, loc, id_in):
         lan = list(self.__locale.keys())
-        if not loc in lan:
+        if loc not in lan:
             loc = self.default_lang
-        if id == 0:
-            return  self.__locale[loc]
-        elif id == 1:
+        if id_in == 0:
+            return self.__locale[loc]
+        elif id_in == 1:
             return self.__pokemon_name[loc]
-        elif id == 2:
+        elif id_in == 2:
             return self.__move_name[loc]
 
-    def get_move(self,loc,id):
-        lang = self.__getLan(loc,2)
-        return lang[str(id)]
+    def get_move(self, loc, id_in):
+        lang = self.__get_lan(loc, 2)
+        return lang[str(id_in)]
 
-    def get_pokemon_name(self,loc,id):
-        lang = self.__getLan(loc,1)
-        return lang[str(id)]
+    def get_pokemon_name(self, loc, id_in):
+        lang = self.__get_lan(loc, 1)
+        return lang[str(id_in)]
 
-    def get_string(self,loc,id):
-        lang = self.__getLan(loc,0)
-        return lang[str(id)]
+    def get_string(self, loc, id_in):
+        lang = self.__get_lan(loc, 0)
+        return lang[str(id_in)]
+
+    @property
+    def locales(self):
+        return list(self.__pokemon_name.keys())

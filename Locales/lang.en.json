@@ -12,7 +12,7 @@
   "10": "You have not supplied a location.",
   "11": "Notifications successfully removed!",
   "12": "Already upto date.",
-  "13": "Load successful.",
+  "13": "Loading successful.",
   "14": "Language set to [%s].",
   "15": "This language is not available. lang <%s>",
   "16": "usage: \"/lang <#language>\"",

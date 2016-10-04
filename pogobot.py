@@ -28,6 +28,7 @@ import DataSources
 import Preferences
 from geopy.geocoders import Nominatim
 import Whitelist
+import Locales
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s',
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 prefs = Preferences.UserPreferences()
 jobs = dict()
 geolocator = Nominatim()
+lang = Locales.Locales()
 
 # User dependant - dont add
 sent = dict()
@@ -106,7 +108,7 @@ def cmd_start(bot, update):
         return
 
     logger.info('[%s@%s] Starting.' % (userName, chat_id))
-    bot.sendMessage(chat_id, text='Hello!')
+    bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'),1))
     cmd_help(bot, update)
 
 def cmd_add(bot, update, args, job_queue):
@@ -119,7 +121,7 @@ def cmd_add(bot, update, args, job_queue):
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 2))
         return
     addJob(bot, update, job_queue)
     logger.info('[%s@%s] Add pokemon.' % (userName, chat_id))
@@ -134,7 +136,7 @@ def cmd_add(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: "/add <#pokemon>"" or "/add <#pokemon1> <#pokemon2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 3))
 
 def cmd_addByRarity(bot, update, args, job_queue):
     chat_id = update.message.chat_id
@@ -146,7 +148,7 @@ def cmd_addByRarity(bot, update, args, job_queue):
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 4))
         return
 
     addJob(bot, update, job_queue)
@@ -164,7 +166,7 @@ def cmd_addByRarity(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: "/addbyrarity <#rarity>" with 1 uncommon to 5 ultrarare')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 4))
 
 def cmd_clear(bot, update):
     chat_id = update.message.chat_id
@@ -179,7 +181,7 @@ def cmd_clear(bot, update):
     logger.info('[%s@%s] Clear list.' % (userName, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     # Remove from jobs
@@ -194,7 +196,7 @@ def cmd_clear(bot, update):
 
     pref.reset_user()
 
-    bot.sendMessage(chat_id, text='Notifications successfully removed!')
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 11))
 
 def cmd_remove(bot, update, args, job_queue):
     chat_id = update.message.chat_id
@@ -208,7 +210,7 @@ def cmd_remove(bot, update, args, job_queue):
     logger.info('[%s@%s] Remove pokemon.' % (userName, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     try:
@@ -220,7 +222,7 @@ def cmd_remove(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: /rem <#pokemon>')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 6))
 
 def cmd_list(bot, update):
     chat_id = update.message.chat_id
@@ -234,14 +236,14 @@ def cmd_list(bot, update):
     logger.info('[%s@%s] List.' % (userName, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     try:
         lan = pref.get('language')
-        tmp = 'List of notifications:\n'
+        tmp = lang.get_string(pref.get('language'), 7) + "\n"
         for x in pref.get('search_ids'):
-            tmp += "%i %s\n" % (x, pokemon_name[lan][str(x)])
+            tmp += "%i %s\n" % (x, lang.get_pokemon_name(lan,x))
         bot.sendMessage(chat_id, text = tmp)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
@@ -258,10 +260,10 @@ def cmd_save(bot, update):
     logger.info('[%s@%s] Save.' % (userName, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
     pref.set_preferences()
-    bot.sendMessage(chat_id, text='Save successful.')
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 8))
 
 def cmd_load(bot, update, job_queue):
     chat_id = update.message.chat_id
@@ -275,14 +277,14 @@ def cmd_load(bot, update, job_queue):
     logger.info('[%s@%s] Attempting to load.' % (userName, chat_id))
     r = pref.load()
     if r is None:
-        bot.sendMessage(chat_id, text='You do not have saved preferences.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 9))
         return
 
     if not r:
-        bot.sendMessage(chat_id, text='Already upto date.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 12))
         return
     else:
-        bot.sendMessage(chat_id, text='Load successful.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 13))
 
     # We might be the first user and above failed....
     if len(pref.get('search_ids')) > 0:
@@ -309,16 +311,16 @@ def cmd_lang(bot, update, args):
 
         if lan in pokemon_name:
             pref.set('language',args[0])
-            bot.sendMessage(chat_id, text='Language set to [%s].' % (lan))
+            bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 14) % (lan))
         else:
             tmp = ''
             for key in pokemon_name:
                 tmp += "%s, " % (key)
             tmp = tmp[:-2]
-            bot.sendMessage(chat_id, text='This language isn\'t available. [%s]' % (tmp))
+            bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 15) % (tmp))
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: /lang <#language>')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 16))
 
 def cmd_location(bot, update):
     chat_id = update.message.chat_id
@@ -330,7 +332,7 @@ def cmd_location(bot, update):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     user_location = update.message.location
@@ -342,7 +344,7 @@ def cmd_location(bot, update):
         pref['location'][0], pref['location'][1], pref['location'][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) %
         (pref['location'][0], pref['location'][1], 1000*pref['location'][2]))
 
 def cmd_location_str(bot, update,args):
@@ -355,18 +357,18 @@ def cmd_location_str(bot, update,args):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text='You have not supplied a location')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 10))
         return
 
     try:
         user_location = geolocator.geocode(' '.join(args))
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='Location not found, or openstreetmap is down.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 18))
         return
 
     # We set the location from the users sent location.
@@ -376,7 +378,7 @@ def cmd_location_str(bot, update,args):
         pref['location'][0], pref.preferences['location'][1], pref.preferences['location'][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" %
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) %
         (pref['location'][0], pref['location'][1], 1000*pref['location'][2]))
 
 
@@ -390,14 +392,14 @@ def cmd_radius(bot, update, args):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text='You have no active scanner.')
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
         return
 
     # Check if user has set a location
     user_location = pref.get('location')
 
     if user_location[0] is None:
-        bot.sendMessage(chat_id, text="You have not sent a location. Do that first!")
+        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 10))
         return
 
     # Get the users location
@@ -416,7 +418,7 @@ def cmd_radius(bot, update, args):
         pref['location'][1], pref['location'][2]))
 
     # Send confirmation
-    bot.sendMessage(chat_id, text="Setting scan location to: %f / %f with radius %.2f m" % (pref['location'][0],
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) % (pref['location'][0],
         pref['location'][1], 1000*pref['location'][2]))
 
 def cmd_clearlocation(bot, update):
@@ -428,52 +430,52 @@ def cmd_clearlocation(bot, update):
 
     pref = prefs.get(chat_id)
     pref.set('location', [None, None, None])
-    bot.sendMessage(chat_id, text='Your location has been removed.')
+    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 19))
     logger.info('[%s@%s] Location has been unset' % (userName, chat_id))
 
 def cmd_addToWhitelist(bot, update, args):
     chat_id = update.message.chat_id
     userName = update.message.from_user.username
     if not whitelist.isWhitelistEnabled():
-        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 20))
         return
     if not whitelist.isAdmin(userName):
         logger.info('[%s@%s] User blocked (addToWhitelist).' % (userName, chat_id))
         return
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text='usage: "/wladd <username>"" or "/wladd <username_1> <username_2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 21))
         return
 
     try:
         for x in args:
             whitelist.addUser(x)
-        bot.sendMessage(chat_id, "Added to whitelist.")
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 22))
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: "/wladd <username>"" or "/wladd <username_1> <username_2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 21))
 
 def cmd_remFromWhitelist(bot, update, args):
     chat_id = update.message.chat_id
     userName = update.message.from_user.username
     if not whitelist.isWhitelistEnabled():
-        bot.sendMessage(chat_id, text='Whitelist is disabled.')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 20))
         return
     if not whitelist.isAdmin(userName):
         logger.info('[%s@%s] User blocked (remFromWhitelist).' % (userName, chat_id))
         return
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text='usage: "/wlrem <username>"" or "/wlrem <username_1> <username_2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 21))
         return
 
     try:
         for x in args:
             whitelist.remUser(x)
-        bot.sendMessage(chat_id, "Removed from whitelist.")
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 23))
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text='usage: "/wlrem <username>"" or "/wlrem <username_1> <username_2>"')
+        bot.sendMessage(chat_id, text=lang.get_string(prefs.get(chat_id).get('language'), 21))
 
 ## Functions
 def error(bot, update, error):
@@ -501,7 +503,7 @@ def addJob(bot, update, job_queue):
                 sent[chat_id] = dict()
             if chat_id not in locks:
                 locks[chat_id] = threading.Lock()
-            text = "Scanner started."
+            text = lang.get_string(prefs.get(chat_id).get('language'), 24)
             bot.sendMessage(chat_id, text)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
@@ -521,10 +523,6 @@ def checkAndSend(bot, chat_id, pokemons):
 
         sendPokeWithoutIV = config.get('SEND_POKEMON_WITHOUT_IV', True)
         pokeMinIVFilterList = config.get('POKEMON_MIN_IV_FILTER_LIST', dict())
-
-        moveNames = move_name["en"]
-        if lan in move_name:
-            moveNames = move_name[lan]
 
         lock.acquire()
 
@@ -547,17 +545,17 @@ def checkAndSend(bot, chat_id, pokemons):
             deltaStr = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
             disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
 
-            title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %s (%s)." % (disappear_time_str, deltaStr)
+            title =  lang.get_pokemon_name(lan, pok_id)
+            address = lang.get_string(pref.get('language'), 25) % (disappear_time_str, deltaStr)
 
             if iv is not None:
                 title += " IV:%s" % (iv)
 
             if move1 is not None and move2 is not None:
                 # Use language if other move languages are available.
-                move1Name = moveNames[move1]
-                move2Name = moveNames[move2]
-                address += " Moves: %s,%s" % (move1Name, move2Name)
+                move1Name = lang.get_move(lan, move1)
+                move2Name = lang.get_move(lan, move2)
+                address += lang.get_string(pref.get('language'), 26) % (move1Name, move2Name)
 
             pokeMinIV = None
             if pok_id in pokeMinIVFilterList:
@@ -634,41 +632,9 @@ def report_config():
     tmp = tmp[1:]
     logger.info('POKEMON_MIN_IV_FILTER_LIST: <%s>' % (tmp))
 
-def read_pokemon_names(loc):
-    logger.info('Reading pokemon names. <%s>' % loc)
-    config_path = "locales/pokemon." + loc + ".json"
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            pokemon_name[loc] = json.loads(f.read())
-    except Exception as e:
-        logger.error('%s' % (repr(e)))
-        # Pass to ignore if some files missing.
-        pass
-
-def read_move_names(loc):
-    logger.info('Reading move names. <%s>' % loc)
-    config_path = "locales/moves." + loc + ".json"
-
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            move_name[loc] = json.loads(f.read())
-    except Exception as e:
-        logger.error('%s' % (repr(e)))
-        # Pass to ignore if some files missing.
-        pass
-
 def main():
     logger.info('Starting...')
     read_config()
-
-    # Read lang files
-    path_to_local = "locales/"
-    for file in os.listdir(path_to_local):
-        if fnmatch.fnmatch(file, 'pokemon.*.json'):
-            read_pokemon_names(file.split('.')[1])
-        if fnmatch.fnmatch(file, 'moves.*.json'):
-            read_move_names(file.split('.')[1])
 
     dbType = config.get('DB_TYPE', None)
     scannerName = config.get('SCANNER_NAME', None)

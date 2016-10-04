@@ -1,0 +1,28 @@
+{
+  "1": "Hello!",
+  "2": "usage: \"/add <#pokemon>\" or \"/add <#pokemon1> <#pokemon2>\"",
+  "3": "usage: \"/add <#pokemon>\" or \"/add <#pokemon1> <#pokemon2>\"",
+  "4": "usage: \"/addbyrarity <#rarity>\" with 1 uncommon to 5 ultrarare",
+  "5": "You have no active scanner.",
+  "6": "usage: \"/rem <#pokemon>\"",
+  "7": "List of notifications:",
+  "8": "Save successful.",
+  "9": "You do not have saved preferences.",
+  "10": "You have not supplied a location.",
+  "11": "Notifications successfully removed!",
+  "12": "Already upto date.",
+  "13": "Load successful.",
+  "14": "Language set to [%s].",
+  "15": "This language isn\'t available. [%s]",
+  "16": "usage: \"/lang <#language>\"",
+  "17": "Setting scan location to: %f / %f with radius %.2f m",
+  "18": "Location not found, or openstreetmap is down.",
+  "19": "Your location has been removed.",
+  "20": "Whitelist is disabled.",
+  "21": "usage: \"/wladd <username>\" or \"/wladd <username_1> <username_2>\""
+  "22": "Added to whitelist.",
+  "23": "Removed from whitelist.",
+  "24": "Scanner started.",
+  "25": "Disappear at %s (%s).",
+  "26": " Moves: %s,%s"
+}

@@ -106,7 +106,7 @@ def cmd_add(bot, update, args, job_queue):
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 2))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 2))
         return
     add_job(bot, update, job_queue)
     logger.info('[%s@%s] Add pokemon.' % (user_name, chat_id))
@@ -121,7 +121,7 @@ def cmd_add(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 3))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 3))
 
 
 def cmd_add_by_rarity(bot, update, args, job_queue):
@@ -134,7 +134,7 @@ def cmd_add_by_rarity(bot, update, args, job_queue):
     pref = prefs.get(chat_id)
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 4))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 4))
         return
 
     add_job(bot, update, job_queue)
@@ -152,7 +152,7 @@ def cmd_add_by_rarity(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 4))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 4))
 
 
 def cmd_clear(bot, update):
@@ -168,7 +168,7 @@ def cmd_clear(bot, update):
     logger.info('[%s@%s] Clear list.' % (user_name, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     # Remove from jobs
@@ -182,7 +182,7 @@ def cmd_clear(bot, update):
     del locks[chat_id]
 
     pref.reset_user()
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 11))
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 11))
 
 
 def cmd_remove(bot, update, args, job_queue):
@@ -197,7 +197,7 @@ def cmd_remove(bot, update, args, job_queue):
     logger.info('[%s@%s] Remove pokemon.' % (user_name, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     try:
@@ -209,7 +209,7 @@ def cmd_remove(bot, update, args, job_queue):
         cmd_list(bot, update)
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 6))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 6))
 
 
 def cmd_list(bot, update):
@@ -224,12 +224,12 @@ def cmd_list(bot, update):
     logger.info('[%s@%s] List.' % (user_name, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     try:
         lan = pref.get('language')
-        tmp = lang.get_string(pref.get('language'), 7) + "\n"
+        tmp = lang.get_string(pref['language'], 7) + "\n"
         for x in pref.get('search_ids'):
             tmp += "%i %s\n" % (x, lang.get_pokemon_name(lan, x))
         bot.sendMessage(chat_id, text=tmp)
@@ -249,10 +249,10 @@ def cmd_save(bot, update):
     logger.info('[%s@%s] Save.' % (user_name, chat_id))
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
     pref.set_preferences()
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 8))
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 8))
 
 
 def cmd_load(bot, update, job_queue):
@@ -267,14 +267,14 @@ def cmd_load(bot, update, job_queue):
     logger.info('[%s@%s] Attempting to load.' % (user_name, chat_id))
     r = pref.load()
     if r is None:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 9))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 9))
         return
 
     if not r:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 12))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 12))
         return
     else:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 13))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 13))
 
     # We might be the first user and above failed....
     if len(pref.get('search_ids')) > 0:
@@ -302,12 +302,12 @@ def cmd_lang(bot, update, args):
 
         if lan in lang.locales:
             pref.set('language', lan)
-            bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 14) % lan)
+            bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 14) % lan)
         else:
-            bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 15) % ', '.join(lang.locales))
+            bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 15) % ', '.join(lang.locales))
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 16))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 16))
 
 
 def cmd_location(bot, update):
@@ -320,7 +320,7 @@ def cmd_location(bot, update):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     user_location = update.message.location
@@ -333,7 +333,7 @@ def cmd_location(bot, update):
                                                                            pref['location'][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) %
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 17) %
                                   (pref['location'][0], pref['location'][1], 1000 * pref['location'][2]))
 
 
@@ -347,18 +347,18 @@ def cmd_location_str(bot, update, args):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     if len(args) <= 0:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 10))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 10))
         return
 
     try:
         user_location = geolocator.geocode(' '.join(args))
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 18))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 18))
         return
 
     # We set the location from the users sent location.
@@ -370,7 +370,7 @@ def cmd_location_str(bot, update, args):
                                                                            pref.preferences['location'][2]))
 
     # Send confirmation nessage
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) %
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 17) %
                                   (pref['location'][0], pref['location'][1], 1000 * pref['location'][2]))
 
 
@@ -384,14 +384,14 @@ def cmd_radius(bot, update, args):
     pref = prefs.get(chat_id)
 
     if chat_id not in jobs:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 5))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 5))
         return
 
     # Check if user has set a location
     user_location = pref.get('location')
 
     if user_location[0] is None:
-        bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 10))
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 10))
         return
 
     # Get the users location
@@ -399,7 +399,7 @@ def cmd_radius(bot, update, args):
         user_name, chat_id, user_location[0], user_location[1], user_location[2]))
 
     if len(args) < 1:
-        bot.sendMessage(chat_id, text="Current scan location is: %f / %f with radius %.2f m"
+        bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 17)
                                       % (user_location[0], user_location[1], user_location[2]))
         return
 
@@ -410,7 +410,7 @@ def cmd_radius(bot, update, args):
                                                                        pref['location'][1], pref['location'][2]))
 
     # Send confirmation
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 17) % (pref['location'][0],
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 17) % (pref['location'][0],
                                                                                pref['location'][1],
                                                                                1000 * pref['location'][2]))
 
@@ -424,7 +424,7 @@ def cmd_clear_location(bot, update):
 
     pref = prefs.get(chat_id)
     pref.set('location', [None, None, None])
-    bot.sendMessage(chat_id, text=lang.get_string(pref.get('language'), 19))
+    bot.sendMessage(chat_id, text=lang.get_string(pref['language'], 19))
     logger.info('[%s@%s] Location has been unset' % (user_name, chat_id))
 
 

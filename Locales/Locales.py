@@ -82,15 +82,30 @@ class Locales:
 
     def get_move(self, loc, id_in):
         lang = self.__get_lan(loc, 2)
-        return lang[str(id_in)]
+        try:
+            r = lang[str(id_in)]
+        except:
+            lang = self.__get_lan(self.default_lang, 2)
+            r = lang[str(id_in)]
+        return r
 
     def get_pokemon_name(self, loc, id_in):
         lang = self.__get_lan(loc, 1)
-        return lang[str(id_in)]
+        try:
+            r = lang[str(id_in)]
+        except:
+            lang = self.__get_lan(self.default_lang, 1)
+            r = lang[str(id_in)]
+        return r
 
     def get_string(self, loc, id_in):
         lang = self.__get_lan(loc, 0)
-        return lang[str(id_in)]
+        try:
+            r = lang[str(id_in)]
+        except:
+            lang = self.__get_lan(self.default_lang, 0)
+            r = lang[str(id_in)]
+        return r
 
     @property
     def locales(self):

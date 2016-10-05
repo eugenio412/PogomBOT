@@ -4,7 +4,7 @@ import os
 import json
 
 if len(sys.argv) < 2:
-    print ("Usage: \n\tpython3 %s <FullPathToPogom>" % (sys.argv[0]))
+    print("Usage: \n\tpython3 %s <FullPathToPogom>" % (sys.argv[0]))
     sys.exit()
 
 # Enable logging
@@ -39,35 +39,35 @@ try:
             locs += 1
         gmaps = config["GOOGLEMAPS_KEY"]
 
-        print ("Accs: %d, Locs: %d" % (accs, locs))
+        print("Accs: %d, Locs: %d" % (accs, locs))
 
-        print ('--- for pokemongo-map config.ini:')
-        str = ""
+        print('--- for pokemongo-map config.ini:')
+        pogom_str = ""
         for w in acc_type:
-            str = "%s, %s" % (str, w)
-        str = str[2:]
-        print ("auth-service: [%s]" % (str))
-        str = ""
+            pogom_str = "%s, %s" % (pogom_str, w)
+        pogom_str = pogom_str[2:]
+        print("auth-service: [%s]" % pogom_str)
+        pogom_str = ""
         for w in acc_user:
-            str = "%s, %s" % (str, w)
-        str = str[2:]
-        print ("username: [%s]" % (str))
-        str = ""
+            pogom_str = "%s, %s" % (pogom_str, w)
+        pogom_str = pogom_str[2:]
+        print("username: [%s]" % pogom_str)
+        pogom_str = ""
         for w in acc_pass:
-            str = "%s, %s" % (str, w)
-        str = str[2:]
-        print ("password: [%s]" % (str))
+            pogom_str = "%s, %s" % (pogom_str, w)
+        pogom_str = pogom_str[2:]
+        print("password: [%s]" % pogom_str)
 
-        print ('--- only for your information:')
-        str = ""
+        print('--- only for your information:')
+        pogom_str = ""
         for w in loc_loc:
-            str = "%s / %s" % (str, w)
-        str = str[2:]
-        print ("locations: [%s]" % (str))
-        str = ""
+            pogom_str = "%s / %s" % (pogom_str, w)
+        pogom_str = pogom_str[2:]
+        print("locations: [%s]" % pogom_str)
+        pogom_str = ""
         for w in loc_rad:
-            str = "%s / %s" % (str, w)
-        str = str[2:]
-        print ("radius: [%s]" % (str))
+            pogom_str = "%s / %s" % (pogom_str, w)
+        pogom_str = pogom_str[2:]
+        print("radius: [%s]" % pogom_str)
 except Exception as e:
     logger.error('%s' % (repr(e)))

@@ -11,7 +11,7 @@ class UserPreferences:
         self.__users = dict()
         self.__config = config
 
-    def __checkUser(self, chat_id):
+    def __check_user(self, chat_id):
         if self.__config is None:
             logger.error('Failed due to configuration file not set.')
             return None
@@ -26,7 +26,7 @@ class UserPreferences:
         logger.info('Configuration file set')
 
     def get(self, chat_id):
-        result = self.__checkUser(chat_id)
+        result = self.__check_user(chat_id)
         if result is None:
             logger.error('Failed due to configuration file not set.')
             return None

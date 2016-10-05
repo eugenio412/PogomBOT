@@ -231,7 +231,7 @@ def cmd_list(bot, update):
         lan = pref.get('language')
         tmp = lang.get_string(pref['language'], 7) + "\n"
         for x in pref.get('search_ids'):
-            tmp += "%i %s\n" % (x, lang.get_pokemon_name(lan, x))
+            tmp += lang.get_pokemon_name(lan, x, fmt='$POKE_NUMBER $POKE_NAME\n')
         bot.sendMessage(chat_id, text=tmp)
     except Exception as e:
         logger.error('[%s@%s] %s' % (user_name, chat_id, repr(e)))

@@ -14,7 +14,7 @@ class Locales:
         # The default dictionary
         d = dict(
             move="$MOVE_NAME",
-            pok_name="$POKE_NAME",
+            pok_name="$POKE_NAME"
         )
         return d
 
@@ -85,23 +85,53 @@ class Locales:
             pass
 
     def __get_lan(self, loc, id_in):
-        lan = list(self.__locale.keys())
-        if loc not in lan:
-            loc = self.default_lang
         if id_in == 0:
+            lan = list(self.__locale.keys())
+            if loc not in lan:
+                loc = self.default_lang
             return self.__locale[loc]
         elif id_in == 1:
+            lan = list(self.__pokemon_name.keys())
+            if loc not in lan:
+                loc = self.default_lang
             return self.__pokemon_name[loc]
         elif id_in == 2:
+            lan = list(self.__move_name.keys())
+            if loc not in lan:
+                loc = self.default_lang
             return self.__move_name[loc]
 
-    def get_move(self, loc, id_in):
+    def get_move(self, loc, id_in, fmt=None):
         lang = self.__get_lan(loc, 2)
-        return self.__appy_move_customisation(lang, id_in)
+        if fmt is None:
+            return self.__appy_move_customisation(lang, id_in)
+        else:
+            old = self.customisation['move']
+            assert isinstance(fmt, str), logger.warn('Can not set format as not a string')
+            self.customisation['move'] = fmt
+            try:
+                ret = self.__appy_move_customisation(lang, id_in)
+                self.customisation['move'] = old
+            except:
+                self.customisation['move'] = old
+                ret = self.__appy_move_customisation(lang, id_in)
+            return ret
 
-    def get_pokemon_name(self, loc, id_in):
+    def get_pokemon_name(self, loc, id_in, fmt=None):
         lang = self.__get_lan(loc, 1)
-        return self.__appy_name_customisation(lang, id_in)
+        if fmt is None:
+            return self.__appy_name_customisation(lang, id_in)
+        else:
+            old = self.customisation['pok_name']
+            assert isinstance(fmt, str), logger.warn('Can not set format as not a string')
+            self.customisation['pok_name'] = fmt
+            try:
+                ret = self.__appy_name_customisation(lang, id_in)
+                self.customisation['pok_name'] = old
+            except:
+                self.customisation['pok_name'] = old
+                ret = self.__appy_name_customisation(lang, id_in)
+            return ret
 
     def get_string(self, loc, id_in):
         lang = self.__get_lan(loc, 0)

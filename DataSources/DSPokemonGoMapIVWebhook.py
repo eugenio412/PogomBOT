@@ -35,16 +35,16 @@ class WebhookHandler(BaseHTTPRequestHandler):
 		if js["type"] == "pokemon":
 			data = js["message"]
 			disappear_time = datetime.utcfromtimestamp(data['disappear_time'])
-			encounter_id = data["encounter_id"]
-			pok_id = data["pokemon_id"]
-			spaw_point = data["spawnpoint_id"]
-			longitude = data["longitude"]
-			latitude = data["latitude"]
-			individual_attack = data["individual_attack"]
-			individual_defense = data["individual_defense"]
-			individual_stamina = data["individual_stamina"]
-			move_1 = data["move_1"]
-			move_2 = data["move_2"]
+			encounter_id = str(data["encounter_id"])
+			pok_id = str(data["pokemon_id"])
+			spaw_point = str(data["spawnpoint_id"])
+			longitude = str(data["longitude"])
+			latitude = str(data["latitude"])
+			individual_attack = str(data["individual_attack"])
+			individual_defense = str(data["individual_defense"])
+			individual_stamina = str(data["individual_stamina"])
+			move_1 = str(data["move_1"])
+			move_2 = str(data["move_2"])
 
 			iv = None
 			if individual_attack is not None:
@@ -67,13 +67,13 @@ class WebhookHandler(BaseHTTPRequestHandler):
 		else:
 			pass
 		self.send_response(200)
-
-def removeOldPokemon(item):
-	delta = item.getDisappearTime() - datetime.utcnow()
-	return delta.seconds > 0
+	# disable webserver logging
+	def log_message(self, format, *args):
+		return
 
 class DSPokemonGoMapIVWebhook():
-	def __init__(self, connectString):
+	method = None
+	def __init__(self, connectString, method):
 		port = int(connectString)
 		logger.info('Starting webhook on port %s.' % (port))
 		self.pokeDict = dict()
@@ -81,29 +81,12 @@ class DSPokemonGoMapIVWebhook():
 		WebhookHandler.instance = self
 		th = threading.Thread(target=startServer, args=[int(port)])
 		th.start()
+		self.method = method
 
 	def addPoke(self, poke):
 		pok_id = poke.getPokemonID()
-		currTime = datetime.utcnow()
-
-		self.lock.acquire()
-		if pok_id not in self.pokeDict:
-			self.pokeDict[pok_id] = []
-		else:
-			self.pokeDict[pok_id][:] = itertools.filterfalse(removeOldPokemon, self.pokeDict[pok_id])
-		self.pokeDict[pok_id].append(poke)
-		self.lock.release()
+		self.method(poke)
 		pass
 
 	def getPokemonByIds(self, ids):
-		pokeList = []
-		self.lock.acquire()
-		currTime = datetime.utcnow()
-		for pid in ids:
-			if pid in self.pokeDict:
-				for poke in pokeDict[pid]:
-					delta = poke.getDisappearTime() - currTime
-					if delta.seconds > 0:
-						pokeList.append(poke)
-		self.lock.release()
-		return pokeList
+		return []

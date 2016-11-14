@@ -37,10 +37,17 @@ logger = logging.getLogger(__name__)
 prefs = Preferences.UserPreferences()
 jobs = dict()
 geolocator = Nominatim()
+telegramBot = None
+
+clearCntThreshold = 100
+dataSource = None
+webhookEnabled = False
+ivAvailable = False
 
 # User dependant - dont add
 sent = dict()
 locks = dict()
+clearCnt = dict()
 
 # User dependant - Add to clear, addJob, loadUserConfig, saveUserConfig
 #search_ids = dict()
@@ -494,27 +501,50 @@ def addJob(bot, update, job_queue):
             job = Job(alarm, 30, repeat=True, context=(chat_id, "Other"))
             # Add to jobs
             jobs[chat_id] = job
-            job_queue.put(job)
+            if not webhookEnabled:
+                logger.info('Putting job')
+                job_queue.put(job)
 
             # User dependant
             if chat_id not in sent:
                 sent[chat_id] = dict()
             if chat_id not in locks:
                 locks[chat_id] = threading.Lock()
+            if chat_id not in clearCnt:
+                clearCnt[chat_id] = 0
             text = "Scanner started."
             bot.sendMessage(chat_id, text)
     except Exception as e:
         logger.error('[%s@%s] %s' % (userName, chat_id, repr(e)))
 
 def checkAndSend(bot, chat_id, pokemons):
-    pref = prefs.get(chat_id)
-    lock = locks[chat_id]
-    logger.info('[%s] Checking pokemon and sending notifications.' % (chat_id))
+    logger.info('[%s] Checking pokemons.' % (chat_id))
     if len(pokemons) == 0:
         return
 
     try:
         allpokes = dataSource.getPokemonByIds(pokemons)
+        for pokemon in allpokes:
+            sendOnePoke(chat_id, pokemon)
+
+    except Exception as e:
+        logger.error('[%s] %s' % (chat_id, repr(e)))
+
+def findUsersByPokeId(pokemon):
+    poke_id = pokemon.getPokemonID()
+    logger.info('Checking pokemon %s for all users.' % (poke_id))
+    for chat_id in jobs:
+        if int(poke_id) in prefs.get(chat_id).get('search_ids'):
+            sendOnePoke(chat_id, pokemon)
+    pass
+
+def sendOnePoke(chat_id, pokemon):
+    pref = prefs.get(chat_id)
+    lock = locks[chat_id]
+    logger.info('[%s] Sending one notification. %s' % (chat_id, pokemon.getPokemonID()))
+
+    lock.acquire()
+    try:
         lan = pref['language']
         mySent = sent[chat_id]
         location_data = pref['location']
@@ -526,56 +556,57 @@ def checkAndSend(bot, chat_id, pokemons):
         if lan in move_name:
             moveNames = move_name[lan]
 
-        lock.acquire()
+        if location_data[0] is not None:
+            if not pokemon.filterbylocation(location_data):
+                lock.release()
+                return
 
-        for pokemon in allpokes:
-            if location_data[0] is not None:
-                if not pokemon.filterbylocation(location_data):
-                    continue
+        encounter_id = pokemon.getEncounterID()
+        spaw_point = pokemon.getSpawnpointID()
+        pok_id = pokemon.getPokemonID()
+        latitude = pokemon.getLatitude()
+        longitude = pokemon.getLongitude()
+        disappear_time = pokemon.getDisappearTime()
+        iv = pokemon.getIVs()
+        move1 = pokemon.getMove1()
+        move2 = pokemon.getMove2()
 
-            encounter_id = pokemon.getEncounterID()
-            spaw_point = pokemon.getSpawnpointID()
-            pok_id = pokemon.getPokemonID()
-            latitude = pokemon.getLatitude()
-            longitude = pokemon.getLongitude()
-            disappear_time = pokemon.getDisappearTime()
-            iv = pokemon.getIVs()
-            move1 = pokemon.getMove1()
-            move2 = pokemon.getMove2()
+        if encounter_id in mySent:
+            lock.release()
+            return
 
-            delta = disappear_time - datetime.utcnow()
-            deltaStr = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
-            disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
+        delta = disappear_time - datetime.utcnow()
+        deltaStr = '%02d:%02d' % (int(delta.seconds / 60), int(delta.seconds % 60))
+        disappear_time_str = disappear_time.replace(tzinfo=timezone.utc).astimezone(tz=None).strftime("%H:%M:%S")
 
-            title =  pokemon_name[lan][pok_id]
-            address = "Disappear at %s (%s)." % (disappear_time_str, deltaStr)
+        title =  pokemon_name[lan][pok_id]
+        address = "Disappear at %s (%s)." % (disappear_time_str, deltaStr)
 
-            if iv is not None:
-                title += " IV:%s" % (iv)
+        if iv is not None:
+            title += " IV:%s" % (iv)
 
-            if move1 is not None and move2 is not None:
-                # Use language if other move languages are available.
-                move1Name = moveNames[move1]
-                move2Name = moveNames[move2]
-                address += " Moves: %s,%s" % (move1Name, move2Name)
+        if move1 is not None and move2 is not None:
+            # Use language if other move languages are available.
+            move1Name = moveNames[move1]
+            move2Name = moveNames[move2]
+            address += " Moves: %s,%s" % (move1Name, move2Name)
 
-            pokeMinIV = None
-            if pok_id in pokeMinIVFilterList:
-                pokeMinIV = pokeMinIVFilterList[pok_id]
+        pokeMinIV = None
+        if pok_id in pokeMinIVFilterList:
+            pokeMinIV = pokeMinIVFilterList[pok_id]
 
-            if encounter_id not in mySent:
-                mySent[encounter_id] = disappear_time
+        if encounter_id not in mySent:
+            mySent[encounter_id] = disappear_time
 
-                notDisappeared = delta.seconds > 0
-                ivNoneAndSendWithout = (iv is None) and sendPokeWithoutIV
-                ivNotNoneAndPokeMinIVNone = (iv is not None) and (pokeMinIV is None)
-                ivHigherEqualFilter = (iv is not None) and (pokeMinIV is not None) and (float(iv) >= float(pokeMinIV))
-                if notDisappeared and (not ivAvailable or ivNoneAndSendWithout or ivNotNoneAndPokeMinIVNone or ivHigherEqualFilter):
-                    if not config.get('SEND_MAP_ONLY', True):
-                        real_loc = geolocator.reverse(", ".join([pokemon.getLatitude(), pokemon.getLongitude()]))
-                        bot.sendMessage(chat_id, text = '%s - %s\n%s' % (title, address,real_loc.address))
-                    bot.sendVenue(chat_id, latitude, longitude, title, address)
-
+            notDisappeared = delta.seconds > 0
+            ivNoneAndSendWithout = (iv is None) and sendPokeWithoutIV
+            ivNotNoneAndPokeMinIVNone = (iv is not None) and (pokeMinIV is None)
+            ivHigherEqualFilter = (iv is not None) and (pokeMinIV is not None) and (float(iv) >= float(pokeMinIV))
+            if notDisappeared and (not ivAvailable or ivNoneAndSendWithout or ivNotNoneAndPokeMinIVNone or ivHigherEqualFilter):
+                if not config.get('SEND_MAP_ONLY', True):
+                    real_loc = geolocator.reverse(", ".join([pokemon.getLatitude(), pokemon.getLongitude()]))
+                    telegramBot.sendMessage(chat_id, text = '%s - %s\n%s' % (title, address,real_loc.address))
+                telegramBot.sendVenue(chat_id, latitude, longitude, title, address)
     except Exception as e:
         logger.error('[%s] %s' % (chat_id, repr(e)))
     lock.release()
@@ -583,18 +614,23 @@ def checkAndSend(bot, chat_id, pokemons):
     # Clean already disappeared pokemon
     # 2016-08-19 20:10:10.000000
     # 2016-08-19 20:10:10
-    try:
-        current_time = datetime.utcnow()
-        lock.acquire()
-        toDel = []
-        for encounter_id in mySent:
-            time = mySent[encounter_id]
-            if time < current_time:
-                toDel.append(encounter_id)
-        for encounter_id in toDel:
-            del mySent[encounter_id]
-    except Exception as e:
-        logger.error('[%s] %s' % (chat_id, repr(e)))
+    lock.acquire()
+    if clearCnt[chat_id] > clearCntThreshold:
+        clearCnt[chat_id] = 0
+        logger.info('[%s] Cleaning pokelist.' % (chat_id))
+        try:
+            current_time = datetime.utcnow()
+            toDel = []
+            for encounter_id in mySent:
+                time = mySent[encounter_id]
+                if time < current_time:
+                    toDel.append(encounter_id)
+            for encounter_id in toDel:
+                del mySent[encounter_id]
+        except Exception as e:
+            logger.error('[%s] %s' % (chat_id, repr(e)))
+    else:
+        clearCnt[chat_id] = clearCnt[chat_id] + 1
     lock.release()
 
 def read_config():
@@ -674,10 +710,8 @@ def main():
     scannerName = config.get('SCANNER_NAME', None)
 
     global dataSource
-    dataSource = None
-
+    global webhookEnabled
     global ivAvailable
-    ivAvailable = False
     if dbType == 'sqlite':
         if scannerName == 'pogom':
             dataSource = DataSources.DSPogom(config.get('DB_CONNECT', None))
@@ -701,13 +735,14 @@ def main():
             ivAvailable = True
             dataSource = DataSources.DSPokemonGoMapIVMysql(config.get('DB_CONNECT', None))
     elif dbType == 'webhook':
+        webhookEnabled = True
         if scannerName == 'pogom':
             pass
         elif scannerName == 'pokemongo-map':
-            dataSource = DataSources.DSPokemonGoMapWebhook(config.get('DB_CONNECT', None))
+            dataSource = DataSources.DSPokemonGoMapWebhook(config.get('DB_CONNECT', None), findUsersByPokeId)
         elif scannerName == 'pokemongo-map-iv':
             ivAvailable = True
-            dataSource = DataSources.DSPokemonGoMapIVWebhook(config.get('DB_CONNECT', None))
+            dataSource = DataSources.DSPokemonGoMapIVWebhook(config.get('DB_CONNECT', None), findUsersByPokeId)
     if not dataSource:
         raise Exception("The combination SCANNER_NAME, DB_TYPE is not available: %s,%s" % (scannerName, dbType))
 
@@ -717,8 +752,9 @@ def main():
     #ask it to the bot father in telegram
     token = config.get('TELEGRAM_TOKEN', None)
     updater = Updater(token)
-    b = Bot(token)
-    logger.info("BotName: <%s>" % (b.name))
+    global telegramBot
+    telegramBot = Bot(token)
+    logger.info("BotName: <%s>" % (telegramBot.name))
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher

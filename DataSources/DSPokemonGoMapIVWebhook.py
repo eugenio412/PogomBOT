@@ -47,7 +47,7 @@ class WebhookHandler(BaseHTTPRequestHandler):
 			move_2 = str(data["move_2"])
 
 			iv = None
-			if individual_attack is not None:
+			if individual_attack is not None and individual_attack != 'None':
 				iv = str((int(individual_attack) +  int(individual_defense) + int(individual_stamina)) / 45 * 100)
 				iv = iv[0:4]
 

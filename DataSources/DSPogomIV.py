@@ -44,9 +44,9 @@ class DSPogomIV():
 				disappear = str(row[5])
 				disappear_time = datetime.strptime(disappear[0:19], "%Y-%m-%d %H:%M:%S")
 
-				individual_attack = row[6]
-				individual_defense = row[7]
-				individual_stamina = row[8]
+				individual_attack = str(row[6])
+				individual_defense = str(row[7])
+				individual_stamina = str(row[8])
 				
 				if row[9] is not None:
 					move1 = str(row[9])
@@ -56,7 +56,7 @@ class DSPogomIV():
 					move2 = None
 
 				iv = None
-				if individual_attack is not None:
+				if individual_attack is not None and individual_attack != 'None':
 					iv = str((int(individual_attack) +  int(individual_defense) + int(individual_stamina)) / 45 * 100)
 					iv = iv[0:4]
 
